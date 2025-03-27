@@ -1,4 +1,4 @@
-import os
+Simport os
 import json
 import PyPDF2
 import requests
@@ -417,30 +417,17 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                 st.subheader("Aggregated Answer:")
                 st.write(aggregatedclean)
 
-                st.subheader("Individual Model Similarity within Aggregated Answer:")
-                model_similarities = {}
-                model_answers = list(resultsdict.items())
-
-                for i in range(len(model_answers)):
-                    model_name_1, answer_1 = model_answers[i]
-                    similarity_scores = []
-                    for j in range(len(model_answers)):
-                        if i != j:
-                            model_name_2, answer_2 = model_answers[j]
-                            try:
-                                embed_1 = similaritymodel.encode(answer_1, convert_to_tensor=True)
-                                embed_2 = similaritymodel.encode(answer_2, convert_to_tensor=True)
-                                similarity = util.cos_sim(embed_1, embed_2)[0][0].item()
-                                similarity_scores.append(similarity)
-                            except Exception as e:
-                                st.write(f"Error calculating similarity between {model_name_1} and {model_name_2}: {e}")
-
-                    if similarity_scores:
-                        avg_similarity = sum(similarity_scores) / len(similarity_scores)
-                        model_similarities[model_name_1] = avg_similarity
-                        st.write(f"{model_name_1}: Average Similarity with other models = {avg_similarity:.2f}")
-                    else:
-                        st.write(f"{model_name_1}: No other models to compare with.")
+                st.subheader("Accuracy Check of Individual Models (using gemrefine):")
+                for model_name, answer in resultsdict.items():
+                    with st.spinner(f"Checking accuracy of {model_name}'s answer..."):
+                        accuracy_check_prompt = (
+                            f"Evaluate the factual accuracy of the following medical answer. "
+                            f"Cross-reference with reliable medical sources and provide a brief assessment:\n\n"
+                            f"{answer}\n\nAccuracy Assessment for {model_name}:"
+                        )
+                        accuracy_assessment = chatbot.gemrefine(accuracy_check_prompt)
+                        st.markdown(f"**{model_name} Accuracy Assessment:**")
+                        st.write(accuracy_assessment)
 
             with st.spinner("Refining aggregated answer..."):
                 refined = chatbot.refine(aggregatedclean)
