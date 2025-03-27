@@ -9,7 +9,7 @@ import streamlit as st
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from google import genai
-from googlesearch import search as google_search 
+from googlesearch import search as Google Search
 from sentence_transformers import SentenceTransformer, util
 
 # Download necessary NLTK data (do this only once)
@@ -237,7 +237,7 @@ class MedAI:
         urls = []
         medicalquery = f"{query} site:pubmed.ncbi.nlm.nih.gov OR site:medlineplus.gov"
         try:
-            for url in google_search(medicalquery):
+            for url in Google Search(medicalquery):
                 urls.append(url)
                 if len(urls) >= num_results:
                     break
@@ -417,6 +417,31 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                 st.subheader("Aggregated Answer:")
                 st.write(aggregatedclean)
 
+                st.subheader("Individual Model Similarity within Aggregated Answer:")
+                model_similarities = {}
+                model_answers = list(resultsdict.items())
+
+                for i in range(len(model_answers)):
+                    model_name_1, answer_1 = model_answers[i]
+                    similarity_scores = []
+                    for j in range(len(model_answers)):
+                        if i != j:
+                            model_name_2, answer_2 = model_answers[j]
+                            try:
+                                embed_1 = similaritymodel.encode(answer_1, convert_to_tensor=True)
+                                embed_2 = similaritymodel.encode(answer_2, convert_to_tensor=True)
+                                similarity = util.cos_sim(embed_1, embed_2)[0][0].item()
+                                similarity_scores.append(similarity)
+                            except Exception as e:
+                                st.write(f"Error calculating similarity between {model_name_1} and {model_name_2}: {e}")
+
+                    if similarity_scores:
+                        avg_similarity = sum(similarity_scores) / len(similarity_scores)
+                        model_similarities[model_name_1] = avg_similarity
+                        st.write(f"{model_name_1}: Average Similarity with other models = {avg_similarity:.2f}")
+                    else:
+                        st.write(f"{model_name_1}: No other models to compare with.")
+
             with st.spinner("Refining aggregated answer..."):
                 refined = chatbot.refine(aggregatedclean)
                 refinedclean = chatbot.cleantext(refined)
@@ -427,27 +452,23 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                 verificationresult = chatbot.verifyrefined(refinedclean, parsedquery)
                 verificationmatches = verificationresult.get("matches", [])
                 confidencescore = verificationresult.get("confidence", 0.0)
+                st.subheader("Refined Answer Accuracy (Confidence Score):")
+                st.write(f"{confidencescore:.2f}")
                 if verificationmatches:
                     st.subheader("Verification Matches (Top results):")
-                    for idx, match in enumerate(verificationmatches[:3], 1): # Display only top 3 matches
+                    for idx, match in enumerate(verificationmatches[:3], 1):
                         st.markdown(f"**Match {idx}:**")
                         st.write(f"Source URL: {match['url']}")
                         st.write(f"Similarity Score: {match['similarity']:.2f}")
                         st.write(f"Matching Sentence: {match['sentence']}")
-                    st.write(f"Overall Confidence Score: {confidencescore:.2f}")
-                else:
-                    st.info("No strong verification matches found.")
 
-            if verificationmatches:
-                with st.spinner("Synthesizing verified information..."):
-                    consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
-                    if consensusverified:
-                        st.subheader("Verified Information:")
-                        st.write(consensusverified)
-                    else:
-                        st.info("No verified information generated.")
-            else:
-                consensusverified = ""
+            with st.spinner("Synthesizing verified information..."):
+                consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
+                if consensusverified:
+                    st.subheader("Verified Information:")
+                    st.write(consensusverified)
+                else:
+                    st.info("No verified information generated.")
 
             if refinedclean and consensusverified:
                 with st.spinner("Combining refined and verified information..."):
