@@ -446,7 +446,7 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                 for match in verificationmatches:
                     try:
                         response = chatbot.fetchurl(match['url'])
-                        if "Could not find that page" not in response and "Error" not in response:
+                        if "Could not find that page" or "Page not found" or "Page or document not found" not in response and "Error" not in response:
                             filtered_matches.append(match)
                         else:
                             st.warning(f"Filtered out URL due to 'could not find page' or error: {match['url']}")
