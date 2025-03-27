@@ -1,4 +1,4 @@
-Simport os
+import os
 import json
 import PyPDF2
 import requests
