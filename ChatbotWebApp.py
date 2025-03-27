@@ -237,7 +237,7 @@ class MedAI:
         urls = []
         medicalquery = f"{query} site:pubmed.ncbi.nlm.nih.gov OR site:medlineplus.gov"
         try:
-            for url in Google Search(medicalquery):
+            for url in google_search(medicalquery):
                 urls.append(url)
                 if len(urls) >= num_results:
                     break
