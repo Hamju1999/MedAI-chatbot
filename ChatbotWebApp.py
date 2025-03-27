@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import streamlit as st
 from bs4 import BeautifulSoup
 from openai import OpenAI
-import google.generativeai as genai
+from google import genai
 from googlesearch import search as google_search 
 from sentence_transformers import SentenceTransformer, util
 
@@ -37,7 +37,7 @@ class MedAI:
         self.conversation_history = []
         self.GPTclient = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
         self.deepseekclient = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
-        self.googleclient = genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        self.googleclient = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
         self.llamaclient = OpenAI(api_key=st.secrets["LLAMA_API_KEY"], base_url="https://api.llama-api.com")
 
     def cleantext(self, text: str) -> str:
@@ -140,7 +140,7 @@ class MedAI:
             "Verify facts against reliable medical sources:\n\n" + query
         )
         try:
-            response = genai.generate_text(
+            response = self.googleclient.models.generate_content(
                 model="gemini-2.0-flash",
                 contents=prompt
             )
@@ -160,7 +160,7 @@ class MedAI:
             "Cross-check facts with reliable sources:\n\n" + query
         )
         try:
-            response = genai.generate_text(
+            response = self.googleclient.models.generate_content(
                 model="gemma-3-27b-it",
                 contents=prompt
             )
@@ -216,7 +216,7 @@ class MedAI:
             f"{query}\n\nFinal Refined Answer:"
         )
         try:
-            response = genai.generate_text(
+            response = self.googleclient.models.generate_content(
                 model="gemini-2.0-flash-thinking-exp-01-21",
                 contents=prompt
             )
