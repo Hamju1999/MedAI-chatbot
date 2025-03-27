@@ -37,7 +37,7 @@ class MedAI:
         self.conversation_history = []
         self.GPTclient = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
         self.deepseekclient = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
-        self.googleclient = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
+        self.googleclient = genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
         self.llamaclient = OpenAI(api_key=st.secrets["LLAMA_API_KEY"], base_url="https://api.llama-api.com")
 
     def cleantext(self, text: str) -> str:
