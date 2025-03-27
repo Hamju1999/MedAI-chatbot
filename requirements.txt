@@ -4,7 +4,7 @@ requests
 nltk
 beautifulsoup4
 openai
-google-generativeai
+google-generativeai==0.3.0
 googlesearch-python
 sentence-transformers
-torc
+torch
