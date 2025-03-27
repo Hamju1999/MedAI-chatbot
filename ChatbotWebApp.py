@@ -475,8 +475,8 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                 with st.spinner("Combining refined and verified information..."):
                     finalverified = chatbot.combinerefinedconsensus(refinedclean, consensusverified)
                     finalverifiedclean = chatbot.cleantext(finalverified)
-                  #  st.subheader("Final Verified Information:")
-                  #  st.write(finalverifiedclean)
+                    st.subheader("Final Verified Information:")
+                    st.write(finalverifiedclean)
             else:
                 st.info("Insufficient data to combine and refine for the final answer.")
 else:
