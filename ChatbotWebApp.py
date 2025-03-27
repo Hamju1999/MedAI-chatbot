@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import streamlit as st
 from bs4 import BeautifulSoup
 from openai import OpenAI
-from google import genai
+import google.generativeai as genai
 from googlesearch import search as google_search 
 from sentence_transformers import SentenceTransformer, util
 
