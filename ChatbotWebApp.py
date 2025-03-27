@@ -9,7 +9,7 @@ import streamlit as st
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from google import genai
-from googlesearch import search as Google Search
+from googlesearch import search as google_search
 from sentence_transformers import SentenceTransformer, util
 
 # Download necessary NLTK data (do this only once)
