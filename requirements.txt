@@ -1,0 +1,10 @@
+streamlit
+PyPDF2
+requests
+nltk
+beautifulsoup4
+openai
+google-generativeai
+googlesearch-python
+sentence-transformers
+torc
