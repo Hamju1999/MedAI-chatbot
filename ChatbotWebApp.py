@@ -396,8 +396,8 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                     primary = chatbot.gpt4(chatbot.primaryprompt(parsedquery, pdf_text, analysis))
                 primaryclean = chatbot.cleantext(primary)
                 chatbot.addtohistory("AI", primaryclean)
-                st.subheader("Primary Answer:")
-                st.write(primaryclean)
+               # st.subheader("Primary Answer:")
+               # st.write(primaryclean)
 
             with st.spinner("Querying multiple models in parallel..."):
                 resultsdict = {}
@@ -414,20 +414,20 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                         resultsdict[modelname] = future.result()
                 aggregated = chatbot.aggregate(resultsdict)
                 aggregatedclean = chatbot.cleantext(aggregated)
-                st.subheader("Aggregated Answer:")
-                st.write(aggregatedclean)
+               # st.subheader("Aggregated Answer:")
+               # st.write(aggregatedclean)
 
-                st.subheader("Accuracy Check of Individual Models (using gemrefine):")
+               # st.subheader("Accuracy Check of Individual Models (using gemrefine):")
                 for model_name, answer in resultsdict.items():
-                    with st.spinner(f"Checking accuracy of {model_name}'s answer..."):
+                   # with st.spinner(f"Checking accuracy of {model_name}'s answer..."):
                         accuracy_check_prompt = (
                             f"Evaluate the factual accuracy of the following medical answer. "
                             f"Cross-reference with reliable medical sources and provide a brief assessment:\n\n"
                             f"{answer}\n\nAccuracy Assessment for {model_name}:"
                         )
                         accuracy_assessment = chatbot.gemrefine(accuracy_check_prompt)
-                        st.markdown(f"**{model_name} Accuracy Assessment:**")
-                        st.write(accuracy_assessment)
+                      #  st.markdown(f"**{model_name} Accuracy Assessment:**")
+                      #  st.write(accuracy_assessment)
 
             with st.spinner("Refining aggregated answer..."):
                 refined = chatbot.refine(aggregatedclean)
@@ -455,7 +455,7 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
 
                 if filtered_matches:
                     st.subheader("Verification Matches (Top results):")
-                    for idx, match in enumerate(filtered_matches[:3], 1):
+                    for idx, match in enumerate(filtered_matches[:10], 1):
                         st.markdown(f"**Match {idx}:**")
                         st.write(f"Source URL: {match['url']}")
                         st.write(f"Similarity Score: {match['similarity']:.2f}")
@@ -475,8 +475,8 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                 with st.spinner("Combining refined and verified information..."):
                     finalverified = chatbot.combinerefinedconsensus(refinedclean, consensusverified)
                     finalverifiedclean = chatbot.cleantext(finalverified)
-                    st.subheader("Final Verified Information:")
-                    st.write(finalverifiedclean)
+                  #  st.subheader("Final Verified Information:")
+                  #  st.write(finalverifiedclean)
             else:
                 st.info("Insufficient data to combine and refine for the final answer.")
 else:
