@@ -140,7 +140,7 @@ class MedAI:
             "Verify facts against reliable medical sources:\n\n" + query
         )
         try:
-            response = self.googleclient.models.generate_content(
+            response = genai.generate_text(
                 model="gemini-2.0-flash",
                 contents=prompt
             )
@@ -160,7 +160,7 @@ class MedAI:
             "Cross-check facts with reliable sources:\n\n" + query
         )
         try:
-            response = self.googleclient.models.generate_content(
+            response = genai.generate_text(
                 model="gemma-3-27b-it",
                 contents=prompt
             )
@@ -216,7 +216,7 @@ class MedAI:
             f"{query}\n\nFinal Refined Answer:"
         )
         try:
-            response = self.googleclient.models.generate_content(
+            response = genai.generate_text(
                 model="gemini-2.0-flash-thinking-exp-01-21",
                 contents=prompt
             )
