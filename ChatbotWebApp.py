@@ -9,7 +9,7 @@ import streamlit as st
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from google import genai
-from googlesearch import search as google_search
+from googlesearch import search as GoogleSearch
 from sentence_transformers import SentenceTransformer, util
 
 # Download necessary NLTK data (do this only once)
@@ -237,7 +237,7 @@ class MedAI:
         urls = []
         medicalquery = f"{query} site:pubmed.ncbi.nlm.nih.gov OR site:medlineplus.gov"
         try:
-            for url in google_search(medicalquery):
+            for url in GoogleSearch(medicalquery):
                 urls.append(url)
                 if len(urls) >= num_results:
                     break
@@ -441,13 +441,27 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                 confidencescore = verificationresult.get("confidence", 0.0)
                 st.subheader("Refined Answer Accuracy (Confidence Score):")
                 st.write(f"{confidencescore:.2f}")
-                if verificationmatches:
+
+                filtered_matches = []
+                for match in verificationmatches:
+                    try:
+                        response = chatbot.fetchurl(match['url'])
+                        if "Could not find that page" not in response and "Error" not in response:
+                            filtered_matches.append(match)
+                        else:
+                            st.warning(f"Filtered out URL due to 'could not find page' or error: {match['url']}")
+                    except Exception as e:
+                        st.error(f"Error checking URL {match['url']}: {e}")
+
+                if filtered_matches:
                     st.subheader("Verification Matches (Top results):")
-                    for idx, match in enumerate(verificationmatches[:3], 1):
+                    for idx, match in enumerate(filtered_matches[:3], 1):
                         st.markdown(f"**Match {idx}:**")
                         st.write(f"Source URL: {match['url']}")
                         st.write(f"Similarity Score: {match['similarity']:.2f}")
                         st.write(f"Matching Sentence: {match['sentence']}")
+                else:
+                    st.info("No valid verification matches found after filtering.")
 
             with st.spinner("Synthesizing verified information..."):
                 consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
