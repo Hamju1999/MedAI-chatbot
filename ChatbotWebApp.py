@@ -35,10 +35,10 @@ similaritymodel = load_similarity_model()
 class MedAI:
     def __init__(self):
         self.conversation_history = []
-        self.GPTclient = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        self.deepseekclient = OpenAI(api_key=os.environ.get("DEEPSEEK_API_KEY"), base_url="https://api.deepseek.com")
+        self.GPTclient = OpenAI(api_key=ost.secrets["OPENAI_API_KEY"])
+        self.deepseekclient = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
         self.googleclient = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
-        self.llamaclient = OpenAI(api_key=os.environ.get("LLAMA_API_KEY"), base_url="https://api.llama-api.com")
+        self.llamaclient = OpenAI(api_key=st.secrets["LLAMA_API_KEY"], base_url="https://api.llama-api.com")
 
     def cleantext(self, text: str) -> str:
         for char in ["---", "**", "*", "#"]:
