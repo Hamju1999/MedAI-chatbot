@@ -460,11 +460,11 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
 
             with st.spinner("Synthesizing verified information..."):
                 consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
-                if consensusverified:
+               # if consensusverified:
                  #  st.subheader("Verified Information:")
                  #  st.write(consensusverified)
-                else:
-                    st.info("No verified information generated.")
+               # else:
+               #     st.info("No verified information generated.")
 
             if refinedclean and consensusverified:
                 with st.spinner("Combining refined and verified information..."):
