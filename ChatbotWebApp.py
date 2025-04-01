@@ -362,7 +362,7 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
 
     uploadedfile = st.file_uploader("Upload Patient Note OR Lab Report", type="pdf")
     if uploadedfile is not None:
-        pdf_text = chatbot.loadpdf(uploaded_file)
+        pdftext = chatbot.loadpdf(uploaded_file)
         st.session_state['pdftext'] = pdftext
     else:
         st.session_state['pdftext'] = ""
