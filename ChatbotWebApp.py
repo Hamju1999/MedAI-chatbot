@@ -357,125 +357,188 @@ class MedAI:
         self.conversation_history.append({"role": role, "content": content})
 
 # Streamlit UI
-st.title("MedAI")
+st.sidebar.title("Select Mode")
+mode = st.sidebar.selectbox("Choose an application mode", ["Chatbot", "Patient Simulation"])
 
-# Initialize chatbot only if API keys are available as environment variables
-if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("GOOGLE_API_KEY") and os.environ.get("LLAMA_API_KEY"):
-    chatbot = MedAI()
-
-    uploadedfile = st.file_uploader("Upload Health Record", type="pdf")
-    if uploadedfile is not None:
-        pdftext = chatbot.loadpdf(uploadedfile)
-        st.session_state['pdftext'] = pdftext
-    else:
-        st.session_state['pdftext'] = ""
-
-    query = st.text_input("Enter your medical query:")
-    if st.button("Get Answer"):
-        if not query:
-            st.warning("Please enter a medical query.")
+if mode == "Chatbot":
+    st.title("MedAI")
+    
+    # Initialize chatbot only if API keys are available as environment variables
+    if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("GOOGLE_API_KEY") and os.environ.get("LLAMA_API_KEY"):
+        chatbot = MedAI()
+    
+        uploadedfile = st.file_uploader("Upload Health Record", type="pdf")
+        if uploadedfile is not None:
+            pdftext = chatbot.loadpdf(uploadedfile)
+            st.session_state['pdftext'] = pdftext
         else:
-            chatbot.addtohistory("User", query)
-            pdftext = st.session_state.get('pdftext', "")
-
-            with st.spinner("Analyzing query..."):
-                analysis = chatbot.analyzequery(query)
-                complexity = analysis.get("complexity", False)
-                intent = analysis.get("intent", "information")
-                medical_terms_present = analysis.get("medical_terms_present", False)
-                parsedquery = analysis.get("parsed_query", query)
-
-            with st.spinner("Generating primary answer..."):
-                if complexity or medical_terms_present or intent.lower() == "advice":
-                    st.info("Detected complex or advice-seeking query. Using detailed model.")
-                    primary = chatbot.gpto1(chatbot.primaryprompt(parsedquery, pdftext, analysis))
-                else:
-                    st.info("Detected simple query. Using advanced reasoning model.")
-                    primary = chatbot.gpt4(chatbot.primaryprompt(parsedquery, pdftext, analysis))
-                primaryclean = chatbot.cleantext(primary)
-                chatbot.addtohistory("AI", primaryclean)
-               # st.subheader("Primary Answer:")
-               # st.write(primaryclean)
-
-            with st.spinner("Querying multiple models in parallel..."):
-                resultsdict = {}
-                with ThreadPoolExecutor(max_workers=6) as executor:
-                    futures = {
-                        'ChatGPT4': executor.submit(chatbot.gpt4, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                        'ChatGPTo1': executor.submit(chatbot.gpto1, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                        'Gemini': executor.submit(chatbot.gemini, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                        'Gemma': executor.submit(chatbot.gemma, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                        'DeepSeek': executor.submit(chatbot.deepseek, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                        'Llama': executor.submit(chatbot.llama, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                    }
-                    for modelname, future in futures.items():
-                        resultsdict[modelname] = future.result()
-                aggregated = chatbot.aggregate(resultsdict)
-                aggregatedclean = chatbot.cleantext(aggregated)
-               # st.subheader("Aggregated Answer:")
-               # st.write(aggregatedclean)
-
-               # st.subheader("Accuracy Check of Individual Models (using gemrefine):")
-                for model_name, answer in resultsdict.items():
-                   # with st.spinner(f"Checking accuracy of {model_name}'s answer..."):
-                        accuracy_check_prompt = (
-                            f"Evaluate the factual accuracy of the following medical answer. "
-                            f"Cross-reference with reliable medical sources and provide a brief assessment:\n\n"
-                            f"{answer}\n\nAccuracy Assessment for {model_name}:"
-                        )
-                        accuracy_assessment = chatbot.gemrefine(accuracy_check_prompt)
-                      #  st.markdown(f"**{model_name} Accuracy Assessment:**")
-                      #  st.write(accuracy_assessment)
-
-            with st.spinner("Refining aggregated answer..."):
-                refined = chatbot.refine(aggregatedclean)
-                refinedclean = chatbot.cleantext(refined)
-                st.subheader("Refined Answer:")
-                st.write(refinedclean)
-
-            with st.spinner("Verifying refined answer against medical sources..."):
-                verificationresult = chatbot.verifyrefined(refinedclean, parsedquery)
-                verificationmatches = verificationresult.get("matches", [])
-                confidencescore = verificationresult.get("confidence", 0.0)
-                st.subheader("Refined Answer Accuracy (Confidence Score):")
-                st.write(f"{confidencescore:.2f}")
-
-                filtered_matches = []
-                for match in verificationmatches:
-                    try:
-                        response = chatbot.fetchurl(match['url'])
-                        if "Could not find that page" not in response and "Page not found" not in response and "Page or document not found" not in response and "Error" not in response:
-                            filtered_matches.append(match)
-                        else:
-                            st.warning(f"Filtered out URL due to 'could not find page' or error: {match['url']}")
-                    except Exception as e:
-                        st.error(f"Error checking URL {match['url']}: {e}")
-
-                if filtered_matches:
-                    st.subheader("Verification Matches (Top results):")
-                    for idx, match in enumerate(filtered_matches[:10], 1):
-                        st.markdown(f"**Match {idx}:**")
-                        st.write(f"Source URL: {match['url']}")
-                        st.write(f"Similarity Score: {match['similarity']:.2f}")
-                        st.write(f"Matching Sentence: {match['sentence']}")
-                else:
-                    st.info("No valid verification matches found after filtering.")
-
-            with st.spinner("Synthesizing verified information..."):
-                consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
-                if consensusverified:
-                    st.subheader("Verified Information:")
-                    st.write(consensusverified)
-                else:
-                    st.info("No verified information generated.")
-
-            if refinedclean and consensusverified:
-                with st.spinner("Combining refined and verified information..."):
-                    finalverified = chatbot.combinerefinedconsensus(refinedclean, consensusverified)
-                    finalverifiedclean = chatbot.cleantext(finalverified)
-                    st.subheader("Final Verified Information:")
-                    st.write(finalverifiedclean)
+            st.session_state['pdftext'] = ""
+    
+        query = st.text_input("Enter your medical query:")
+        if st.button("Get Answer"):
+            if not query:
+                st.warning("Please enter a medical query.")
             else:
-                st.info("Insufficient data to combine and refine for the final answer.")
-else:
-    st.warning("API keys are not configured. Please set them as secrets in Streamlit Cloud.")
+                chatbot.addtohistory("User", query)
+                pdftext = st.session_state.get('pdftext', "")
+    
+                with st.spinner("Analyzing query..."):
+                    analysis = chatbot.analyzequery(query)
+                    complexity = analysis.get("complexity", False)
+                    intent = analysis.get("intent", "information")
+                    medical_terms_present = analysis.get("medical_terms_present", False)
+                    parsedquery = analysis.get("parsed_query", query)
+    
+                with st.spinner("Generating primary answer..."):
+                    if complexity or medical_terms_present or intent.lower() == "advice":
+                        st.info("Detected complex or advice-seeking query. Using detailed model.")
+                        primary = chatbot.gpto1(chatbot.primaryprompt(parsedquery, pdftext, analysis))
+                    else:
+                        st.info("Detected simple query. Using advanced reasoning model.")
+                        primary = chatbot.gpt4(chatbot.primaryprompt(parsedquery, pdftext, analysis))
+                    primaryclean = chatbot.cleantext(primary)
+                    chatbot.addtohistory("AI", primaryclean)
+                   # st.subheader("Primary Answer:")
+                   # st.write(primaryclean)
+    
+                with st.spinner("Querying multiple models in parallel..."):
+                    resultsdict = {}
+                    with ThreadPoolExecutor(max_workers=6) as executor:
+                        futures = {
+                            'ChatGPT4': executor.submit(chatbot.gpt4, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                            'ChatGPTo1': executor.submit(chatbot.gpto1, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                            'Gemini': executor.submit(chatbot.gemini, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                            'Gemma': executor.submit(chatbot.gemma, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                            'DeepSeek': executor.submit(chatbot.deepseek, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                            'Llama': executor.submit(chatbot.llama, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        }
+                        for modelname, future in futures.items():
+                            resultsdict[modelname] = future.result()
+                    aggregated = chatbot.aggregate(resultsdict)
+                    aggregatedclean = chatbot.cleantext(aggregated)
+                   # st.subheader("Aggregated Answer:")
+                   # st.write(aggregatedclean)
+    
+                   # st.subheader("Accuracy Check of Individual Models (using gemrefine):")
+                    for model_name, answer in resultsdict.items():
+                       # with st.spinner(f"Checking accuracy of {model_name}'s answer..."):
+                            accuracy_check_prompt = (
+                                f"Evaluate the factual accuracy of the following medical answer. "
+                                f"Cross-reference with reliable medical sources and provide a brief assessment:\n\n"
+                                f"{answer}\n\nAccuracy Assessment for {model_name}:"
+                            )
+                            accuracy_assessment = chatbot.gemrefine(accuracy_check_prompt)
+                          #  st.markdown(f"**{model_name} Accuracy Assessment:**")
+                          #  st.write(accuracy_assessment)
+    
+                with st.spinner("Refining aggregated answer..."):
+                    refined = chatbot.refine(aggregatedclean)
+                    refinedclean = chatbot.cleantext(refined)
+                    st.subheader("Refined Answer:")
+                    st.write(refinedclean)
+    
+                with st.spinner("Verifying refined answer against medical sources..."):
+                    verificationresult = chatbot.verifyrefined(refinedclean, parsedquery)
+                    verificationmatches = verificationresult.get("matches", [])
+                    confidencescore = verificationresult.get("confidence", 0.0)
+                    st.subheader("Refined Answer Accuracy (Confidence Score):")
+                    st.write(f"{confidencescore:.2f}")
+    
+                    filtered_matches = []
+                    for match in verificationmatches:
+                        try:
+                            response = chatbot.fetchurl(match['url'])
+                            if "Could not find that page" not in response and "Page not found" not in response and "Page or document not found" not in response and "Error" not in response:
+                                filtered_matches.append(match)
+                            else:
+                                st.warning(f"Filtered out URL due to 'could not find page' or error: {match['url']}")
+                        except Exception as e:
+                            st.error(f"Error checking URL {match['url']}: {e}")
+    
+                    if filtered_matches:
+                        st.subheader("Verification Matches (Top results):")
+                        for idx, match in enumerate(filtered_matches[:10], 1):
+                            st.markdown(f"**Match {idx}:**")
+                            st.write(f"Source URL: {match['url']}")
+                            st.write(f"Similarity Score: {match['similarity']:.2f}")
+                            st.write(f"Matching Sentence: {match['sentence']}")
+                    else:
+                        st.info("No valid verification matches found after filtering.")
+    
+                with st.spinner("Synthesizing verified information..."):
+                    consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
+                    if consensusverified:
+                        st.subheader("Verified Information:")
+                        st.write(consensusverified)
+                    else:
+                        st.info("No verified information generated.")
+    
+                if refinedclean and consensusverified:
+                    with st.spinner("Combining refined and verified information..."):
+                        finalverified = chatbot.combinerefinedconsensus(refinedclean, consensusverified)
+                        finalverifiedclean = chatbot.cleantext(finalverified)
+                        st.subheader("Final Verified Information:")
+                        st.write(finalverifiedclean)
+                else:
+                    st.info("Insufficient data to combine and refine for the final answer.")
+    else:
+        st.warning("API keys are not configured. Please set them as secrets in Streamlit Cloud.")
+        
+elif mode == "Patient Simulation":
+    st.title("AI Patient Simulation (Heart Failure)")
+
+    simulated_patient_case = {
+        "chief_complaint": "Shortness of breath and swelling in my legs.",
+        "history_of_present_illness": "The patient reports increasing shortness of breath over the past week, especially when lying down. They also noticed swelling in their ankles and legs. They feel tired more easily.",
+        "past_medical_history": ["Hypertension", "Type 2 Diabetes"],
+        "medications": ["Lisinopril", "Metformin"],
+        "typical_responses": {
+            "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
+            "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
+            "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
+            "are you taking all your medications?": "Yes, I haven't missed any doses.",
+            "any chest pain?": "No, no chest pain.",
+        }
+    }
+
+    if "simulation_messages" not in st.session_state:
+        st.session_state["simulation_messages"] = [{"role": "assistant", "content": f"Hello doctor, I'm here because of {simulated_patient_case['chief_complaint']}"}]
+
+    for msg in st.session_state.simulation_messages:
+        st.chat_message(msg["role"]).write(msg["content"])
+
+    if prompt := st.chat_input(key="simulation_input"): 
+        st.session_state.simulation_messages.append({"role": "user", "content": prompt})
+        st.chat_message("user").write(prompt)
+
+        openai_api_key_simulation = st.secrets.get("OPENAI_API_KEY")
+        if not openai_api_key_simulation:
+            st.error("OpenAI API key is required for the simulation.")
+            st.stop()
+
+        client_simulation = OpenAI(api_key=openai_api_key_simulation)
+
+        llm_prompt = f"""You are a patient with heart failure. Your chief complaint is "{simulated_patient_case['chief_complaint']}".
+        Your history includes: {', '.join(simulated_patient_case['past_medical_history'])}.
+        You are currently taking: {', '.join(simulated_patient_case['medications'])}.
+
+        Here is the conversation so far:
+        {[(msg['role'], msg['content']) for msg in st.session_state.simulation_messages]}
+
+        Respond to the last message as the patient would, drawing from your simulated information and typical responses. Be concise and realistic.
+        """
+
+        try:
+            response = client_simulation.chat.completions.create(
+                model="gpt-4o",  # Or another suitable model
+                messages=[
+                    {"role": "system", "content": "You are a patient in a medical simulation."},
+                    {"role": "user", "content": llm_prompt},
+                ]
+            )
+            ai_response = response.choices[0].message.content
+            st.session_state.simulation_messages.append({"role": "assistant", "content": ai_response})
+            st.chat_message("assistant").write(ai_response)
+
+        except Exception as e:
+            st.error(f"An error occurred in the simulation: {e}")
