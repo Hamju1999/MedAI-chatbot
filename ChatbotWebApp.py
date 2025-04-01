@@ -118,7 +118,8 @@ class MedAI:
 
     def gpto1(self, query: str) -> str:
         prompt = (
-            "Answer the following medical query succinctly with proper medical terminology and factual accuracy:\n\n" + query
+            "Answer the following medical query succinctly with proper medical terminology and factual accuracy: "
+            "Cross-check your response with reliable medical knowledge:\n\n" + query
         )
         try:
             response = self.GPTclient.chat.completions.create(
@@ -171,7 +172,8 @@ class MedAI:
 
     def deepseek(self, query: str) -> str:
         prompt = (
-            "Answer the following medical query with detailed reasoning, ensuring factual accuracy and proper medical terminology:\n\n" + query
+            "Answer the following medical query with detailed reasoning, ensuring factual accuracy and proper medical terminolog: "
+            "Cross-check facts with reliable sources:\n\n" + query
         )
         try:
             response = self.deepseekclient.chat.completions.create(
@@ -184,7 +186,8 @@ class MedAI:
 
     def llama(self, query: str) -> str:
         prompt = (
-            "Answer the following medical query with detailed reasoning and proper medical terminology:\n\n" + query
+            "Answer the following medical query with detailed reasoning and proper medical terminology: "
+            "Cross-check facts with reliable sources:\n\n" + query
         )
         try:
             response = self.llamaclient.chat.completions.create(
@@ -206,7 +209,7 @@ class MedAI:
 
     def gemrefine(self, query: str) -> str:
         prompt = (
-            "Refine the following aggregated medical answer consisly, ensuring factual accuracy. "
+            "Refine the following aggregated medical answer succinctly, ensuring factual accuracy. "
             "Cross-check against reliable medical sources (e.g., PubMed, MedlinePlus, CDC, Mayo Clinic, NIH) and use precise medical terminology:\n\n"
             f"{query}\n\nFinal Refined Answer:"
         )
@@ -360,7 +363,7 @@ st.title("MedAI")
 if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("GOOGLE_API_KEY") and os.environ.get("LLAMA_API_KEY"):
     chatbot = MedAI()
 
-    uploadedfile = st.file_uploader("Upload Patient Note OR Lab Report", type="pdf")
+    uploadedfile = st.file_uploader("Upload Health Record, type="pdf")
     if uploadedfile is not None:
         pdftext = chatbot.loadpdf(uploaded_file)
         st.session_state['pdftext'] = pdftext
@@ -460,11 +463,11 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
 
             with st.spinner("Synthesizing verified information..."):
                 consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
-               # if consensusverified:
-                 #  st.subheader("Verified Information:")
-                 #  st.write(consensusverified)
-               # else:
-               #     st.info("No verified information generated.")
+                 if consensusverified:
+                    st.subheader("Verified Information:")
+                    st.write(consensusverified)
+                 else:
+                    st.info("No verified information generated.")
 
             if refinedclean and consensusverified:
                 with st.spinner("Combining refined and verified information..."):
