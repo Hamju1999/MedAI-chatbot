@@ -385,10 +385,10 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
             with st.spinner("Generating primary answer..."):
                 if complexity or medical_terms_present or intent.lower() == "advice":
                     st.info("Detected complex or advice-seeking query. Using detailed model.")
-                    primary = chatbot.gpto1(chatbot.primaryprompt(parsedquery, pdf_text, analysis))
+                    primary = chatbot.gpto1(chatbot.primaryprompt(parsedquery, pdftext, analysis))
                 else:
                     st.info("Detected simple query. Using advanced reasoning model.")
-                    primary = chatbot.gpt4(chatbot.primaryprompt(parsedquery, pdf_text, analysis))
+                    primary = chatbot.gpt4(chatbot.primaryprompt(parsedquery, pdftext, analysis))
                 primaryclean = chatbot.cleantext(primary)
                 chatbot.addtohistory("AI", primaryclean)
                # st.subheader("Primary Answer:")
@@ -398,12 +398,12 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
                 resultsdict = {}
                 with ThreadPoolExecutor(max_workers=6) as executor:
                     futures = {
-                        'ChatGPT4': executor.submit(chatbot.gpt4, chatbot.primaryprompt(parsedquery, pdf_text, analysis)),
-                        'ChatGPTo1': executor.submit(chatbot.gpto1, chatbot.primaryprompt(parsedquery, pdf_text, analysis)),
-                        'Gemini': executor.submit(chatbot.gemini, chatbot.primaryprompt(parsedquery, pdf_text, analysis)),
-                        'Gemma': executor.submit(chatbot.gemma, chatbot.primaryprompt(parsedquery, pdf_text, analysis)),
-                        'DeepSeek': executor.submit(chatbot.deepseek, chatbot.primaryprompt(parsedquery, pdf_text, analysis)),
-                        'Llama': executor.submit(chatbot.llama, chatbot.primaryprompt(parsedquery, pdf_text, analysis)),
+                        'ChatGPT4': executor.submit(chatbot.gpt4, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'ChatGPTo1': executor.submit(chatbot.gpto1, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'Gemini': executor.submit(chatbot.gemini, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'Gemma': executor.submit(chatbot.gemma, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'DeepSeek': executor.submit(chatbot.deepseek, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'Llama': executor.submit(chatbot.llama, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
                     }
                     for modelname, future in futures.items():
                         resultsdict[modelname] = future.result()
