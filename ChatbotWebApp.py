@@ -363,7 +363,7 @@ st.title("MedAI")
 if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("GOOGLE_API_KEY") and os.environ.get("LLAMA_API_KEY"):
     chatbot = MedAI()
 
-    uploadedfile = st.file_uploader("Upload Health Record, type="pdf")
+    uploadedfile = st.file_uploader("Upload Health Record", type="pdf")
     if uploadedfile is not None:
         pdftext = chatbot.loadpdf(uploaded_file)
         st.session_state['pdftext'] = pdftext
