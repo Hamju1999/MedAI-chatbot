@@ -13,17 +13,12 @@ from googlesearch import search as GoogleSearch
 from sentence_transformers import SentenceTransformer, util
 
 # Download necessary NLTK data (do this only once)
-try:
-    nltk.data.find('punkt')
-except Exception as e:
-    print(f"Error finding punkt data: {e}")
-    nltk.download('punkt')
-
-try:
-    nltk.data.find('punkt_tab')
-except Exception as e:
-    print(f"Error finding punkt_tab data: {e}")
-    nltk.download('punkt_tab')
+for package in ['punkt', 'punkt_tab']:
+    try:
+        nltk.data.find(package)
+    except Exception as e:
+        print(f"Error finding {package} data: {e}")
+        nltk.download(package)
 
 # Load sentence embedding model (do this only once)
 @st.cache_resource
@@ -45,7 +40,7 @@ class MedAI:
             text = text.replace(char, "")
         return text
 
-    def loadpdf_from_bytes(self, file_bytes):
+    def loadpdf(self, file_bytes):
         try:
             reader = PyPDF2.PdfReader(file_bytes)
             pdftext = ""
@@ -211,8 +206,8 @@ class MedAI:
 
     def gemrefine(self, query: str) -> str:
         prompt = (
-            "Refine the following aggregated medical answer to ensure factual accuracy. "
-            "Cross-check against reliable medical sources (e.g., PubMed, MedlinePlus) and use precise medical terminology:\n\n"
+            "Refine the following aggregated medical answer consisly, ensuring factual accuracy. "
+            "Cross-check against reliable medical sources (e.g., PubMed, MedlinePlus, CDC, Mayo Clinic, NIH) and use precise medical terminology:\n\n"
             f"{query}\n\nFinal Refined Answer:"
         )
         try:
@@ -235,7 +230,7 @@ class MedAI:
 
     def searchmedical(self, query: str, num_results: int = 5) -> list:
         urls = []
-        medicalquery = f"{query} site:pubmed.ncbi.nlm.nih.gov OR site:medlineplus.gov"
+        medicalquery = f"{query} site:pubmed.ncbi.nlm.nih.gov, site:medlineplus.gov, site:cdc.gov, site:mayoclinic.org, site:nih.gov"
         try:
             for url in GoogleSearch(medicalquery):
                 urls.append(url)
@@ -338,7 +333,7 @@ class MedAI:
         synthesisprompt = (
             "Combine the following sentences extracted from verified medical sources. "
             "Provide a detailed consensus summary that is fact-checked and uses proper medical terminology. "
-            "Ensure the final summary cross-references reliable sources (e.g., PubMed, MedlinePlus):\n\n"
+            "Ensure the final summary cross-references reliable sources (e.g., PubMed, MedlinePlus, CDC, Mayo Clinic, NIH):\n\n"
             f"{combinedtext}\n\nConsensus Summary:"
         )
         consensus = self.gemrefine(synthesisprompt)
@@ -348,7 +343,7 @@ class MedAI:
         combinedtext = f"Refined Answer:\n{refined}\n\nConsensus Summary:\n{consensus}"
         prompt = (
             "Compare the two texts provided below and extract the common verified information. "
-            "Combine this information and refine it into a final, detailed verified answer using proper medical terminology. "
+            "Combine this information and refine it into a final, concise verified answer using proper medical terminology. "
             "Ensure factual accuracy by cross-referencing reliable medical databases:\n\n"
             f"{combinedtext}\n\nFinal Verified Answer:"
         )
@@ -359,18 +354,18 @@ class MedAI:
         self.conversation_history.append({"role": role, "content": content})
 
 # Streamlit UI
-st.title("Medically Focused Multi-LLM Chatbot")
+st.title("MedAI")
 
 # Initialize chatbot only if API keys are available as environment variables
 if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("GOOGLE_API_KEY") and os.environ.get("LLAMA_API_KEY"):
     chatbot = MedAI()
 
-    uploaded_file = st.file_uploader("Upload Patient Note (PDF)", type="pdf")
-    if uploaded_file is not None:
-        pdf_text = chatbot.loadpdf_from_bytes(uploaded_file)
-        st.session_state['pdf_text'] = pdf_text
+    uploadedfile = st.file_uploader("Upload Patient Note OR Lab Report", type="pdf")
+    if uploadedfile is not None:
+        pdf_text = chatbot.loadpdf(uploaded_file)
+        st.session_state['pdftext'] = pdftext
     else:
-        st.session_state['pdf_text'] = ""
+        st.session_state['pdftext'] = ""
 
     query = st.text_input("Enter your medical query:")
     if st.button("Get Answer"):
@@ -378,7 +373,7 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
             st.warning("Please enter a medical query.")
         else:
             chatbot.addtohistory("User", query)
-            pdf_text = st.session_state.get('pdf_text', "")
+            pdftext = st.session_state.get('pdftext', "")
 
             with st.spinner("Analyzing query..."):
                 analysis = chatbot.analyzequery(query)
@@ -466,8 +461,8 @@ if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and o
             with st.spinner("Synthesizing verified information..."):
                 consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
                 if consensusverified:
-                    st.subheader("Verified Information:")
-                    st.write(consensusverified)
+                 #  st.subheader("Verified Information:")
+                 #  st.write(consensusverified)
                 else:
                     st.info("No verified information generated.")
 
