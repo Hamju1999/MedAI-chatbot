@@ -356,23 +356,6 @@ class MedAI:
     def addtohistory(self, role: str, content: str):
         self.conversation_history.append({"role": role, "content": content})
 
-    def parse_transcript(transcript_text: str) -> dict:
-        lines = transcript_text.splitlines()
-        chief_complaint = lines[0] if lines and lines[0].strip() else "Shortness of breath and swelling in my legs."
-        # For simplicity, we use static details for HPI, PMH, and medications.
-        return {
-            "chief_complaint": chief_complaint,
-            "history_of_present_illness": "Extracted from transcript: " + transcript_text[:100],
-            "past_medical_history": ["Hypertension", "Type 2 Diabetes"],
-            "medications": ["Lisinopril", "Metformin"],
-            "typical_responses": {
-                "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
-                "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
-                "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
-                "are you taking all your medications?": "Yes, I haven't missed any doses.",
-                "any chest pain?": "No, no chest pain.",
-            }
-        }
 # Streamlit UI
 st.sidebar.title("Select Mode")
 mode = st.sidebar.selectbox("Choose an application mode", ["Chatbot", "Patient Simulation"])
@@ -502,6 +485,23 @@ if mode == "Chatbot":
         st.warning("API keys are not configured. Please set them as secrets in Streamlit Cloud.")
         
 elif mode == "Patient Simulation":
+    def parse_transcript(transcript_text: str) -> dict:
+        lines = transcript_text.splitlines()
+        chief_complaint = lines[0] if lines and lines[0].strip() else "Shortness of breath and swelling in my legs."
+        # For simplicity, we use static details for HPI, PMH, and medications.
+        return {
+            "chief_complaint": chief_complaint,
+            "history_of_present_illness": "Extracted from transcript: " + transcript_text[:100],
+            "past_medical_history": ["Hypertension", "Type 2 Diabetes"],
+            "medications": ["Lisinopril", "Metformin"],
+            "typical_responses": {
+                "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
+                "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
+                "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
+                "are you taking all your medications?": "Yes, I haven't missed any doses.",
+                "any chest pain?": "No, no chest pain.",
+            }
+        }
     st.title("Interactive AI Patient Simulation")
 
     uploaded_file = st.file_uploader("Upload the clinical transcript (TXT file)", type=["txt"])
