@@ -3,6 +3,7 @@ import json
 import PyPDF2
 import requests
 import nltk
+import textwrap
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 import streamlit as st
@@ -486,24 +487,45 @@ if mode == "Chatbot":
         
 elif mode == "Patient Simulation":
     def parse_transcript(transcript_text: str) -> dict:
-        lines = transcript_text.splitlines()
-        chief_complaint = lines[0] if lines and lines[0].strip() else "Shortness of breath and swelling in my legs."
-        # For simplicity, we use static details for HPI, PMH, and medications.
+        # Extract Chief Complaint from the transcript
+        cc_match = re.search(r"Chief Complaint:\s*(.*)", transcript_text)
+        chief_complaint = cc_match.group(1).strip() if cc_match else "Shortness of breath and swelling in my legs."
+        
+        # Extract History of Present Illness (HPI)
+        hpi_match = re.search(r"History of Present Illness \(HPI\):\s*(.*?)\n\n", transcript_text, re.DOTALL)
+        history_of_present_illness = hpi_match.group(1).strip() if hpi_match else transcript_text[:100]
+        
+        # Extract Past Medical History (PMH)
+        pmh_match = re.search(r"Past Medical History.*?:\s*(.*?)\n\n", transcript_text, re.DOTALL)
+        past_medical_history_text = pmh_match.group(1).strip() if pmh_match else ""
+        past_medical_history = re.split(r'\n|\r', past_medical_history_text)
+        past_medical_history = [line.strip() for line in past_medical_history if line.strip()]
+        
+        # Extract Medications
+        med_match = re.search(r"Medications:\s*(.*?)\n\n", transcript_text, re.DOTALL)
+        medications_text = med_match.group(1).strip() if med_match else ""
+        meds_lines = medications_text.splitlines()
+        medications = [re.sub(r"^\d+\.\s*", "", line).strip() for line in meds_lines if line.strip()]
+        
+        typical_responses = {
+            "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
+            "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
+            "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
+            "are you taking all your medications?": "Yes, I haven't missed any doses.",
+            "any chest pain?": "No, no chest pain.",
+        }
+        
         return {
             "chief_complaint": chief_complaint,
-            "history_of_present_illness": "Extracted from transcript: " + transcript_text[:100],
-            "past_medical_history": ["Hypertension", "Type 2 Diabetes"],
-            "medications": ["Lisinopril", "Metformin"],
-            "typical_responses": {
-                "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
-                "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
-                "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
-                "are you taking all your medications?": "Yes, I haven't missed any doses.",
-                "any chest pain?": "No, no chest pain.",
-            }
+            "history_of_present_illness": history_of_present_illness,
+            "past_medical_history": past_medical_history,
+            "medications": medications,
+            "typical_responses": typical_responses
         }
+    
     st.title("Interactive AI Patient Simulation")
-
+    
+    # Upload the clinical transcript (TXT file)
     uploaded_file = st.file_uploader("Upload the clinical transcript (TXT file)", type=["txt"])
     if uploaded_file is not None:
         transcript_text = uploaded_file.read().decode("utf-8")
@@ -525,10 +547,10 @@ elif mode == "Patient Simulation":
                 "any chest pain?": "No, no chest pain.",
             }
         }
-
-# -----------------------------------------------------------------------------
-# 2. Initialize or Retrieve Chat Session State
-# -----------------------------------------------------------------------------
+    
+    # -----------------------------------------------------------------------------
+    # 2. Initialize or Retrieve Chat Session State
+    # -----------------------------------------------------------------------------
     if "simulation_messages" not in st.session_state:
         st.session_state["simulation_messages"] = [{
             "role": "assistant",
@@ -537,10 +559,10 @@ elif mode == "Patient Simulation":
     
     for msg in st.session_state.simulation_messages:
         st.chat_message(msg["role"]).write(msg["content"])
-
-# -----------------------------------------------------------------------------
-# 3. Chat Input and AI Simulation Response
-# -----------------------------------------------------------------------------
+    
+    # -----------------------------------------------------------------------------
+    # 3. Chat Input and AI Simulation Response
+    # -----------------------------------------------------------------------------
     prompt = st.chat_input(key="simulation_input")
     if prompt:
         # Add user's prompt to conversation history.
@@ -551,27 +573,26 @@ elif mode == "Patient Simulation":
         conversation_context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.simulation_messages])
         
         # Construct the LLM prompt using the simulated case and conversation so far.
-        llm_prompt = f"""
-            You are a patient with heart failure. Your chief complaint is {simulated_patient_case['chief_complaint']}.".
+        llm_prompt = textwrap.dedent(f"""
+            You are a patient with heart failure. Your chief complaint is {simulated_patient_case['chief_complaint']}.
             Your history includes: {', '.join(simulated_patient_case['past_medical_history'])}.
             You are currently taking: {', '.join(simulated_patient_case['medications'])}.
             
             Here is the conversation so far:
-            [conversation_context]
+            {conversation_context}
             
             Respond to the last message as the patient would, drawing from your simulated details and typical responses. Be concise and realistic.
-
-            """
-    
+        """)
+        
         # Retrieve the OpenAI API key from secrets.
         openai_api_key_simulation = st.secrets.get("OPENAI_API_KEY")
         if not openai_api_key_simulation:
             st.error("OpenAI API key is required for the simulation.")
             st.stop()
-    
+        
         # Initialize OpenAI client.
         client_simulation = OpenAI(api_key=openai_api_key_simulation)
-    
+        
         try:
             response = client_simulation.chat.completions.create(
                 model="gpt-4o",  # Change to your preferred model if needed.
