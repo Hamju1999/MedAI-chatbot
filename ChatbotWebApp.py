@@ -4,6 +4,7 @@ import PyPDF2
 import requests
 import nltk
 import textwrap
+import re
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 import streamlit as st
