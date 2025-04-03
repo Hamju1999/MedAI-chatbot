@@ -360,7 +360,7 @@ class MedAI:
 
 # Streamlit UI
 st.sidebar.title("Select Mode")
-mode = st.sidebar.selectbox("Choose an application mode", ["Chatbot", "Patient Simulation"])
+mode = st.sidebar.selectbox("Choose an application mode", ["Chatbot", "Patient Simulation", "Discharge Instructions"])
 
 if mode == "Chatbot":
     st.title("MedAI")
@@ -487,28 +487,28 @@ if mode == "Chatbot":
         st.warning("API keys are not configured. Please set them as secrets in Streamlit Cloud.")
 
 if mode == "Patient Simulation":
-    def parse_transcript(transcript_text: str) -> dict:
+    def parsetranscript(transcripttext: str) -> dict:
         # Extract Chief Complaint from the transcript
-        cc_match = re.search(r"Chief Complaint:\s*(.*)", transcript_text)
-        chief_complaint = cc_match.group(1).strip() if cc_match else "Shortness of breath and swelling in my legs."
+        ccmatch = re.search(r"Chief Complaint:\s*(.*)", transcripttext)
+        chiefcomplaint = ccmatch.group(1).strip() if ccmatch else "Shortness of breath and swelling in my legs."
         
         # Extract History of Present Illness (HPI)
-        hpi_match = re.search(r"History of Present Illness \(HPI\):\s*(.*?)\n\n", transcript_text, re.DOTALL)
-        history_of_present_illness = hpi_match.group(1).strip() if hpi_match else transcript_text[:100]
+        hpimatch = re.search(r"History of Present Illness \(HPI\):\s*(.*?)\n\n", transcripttext, re.DOTALL)
+        historyofpresentillness = hpimatch.group(1).strip() if hpimatch else transcripttext[:100]
         
         # Extract Past Medical History (PMH)
-        pmh_match = re.search(r"Past Medical History.*?:\s*(.*?)\n\n", transcript_text, re.DOTALL)
-        past_medical_history_text = pmh_match.group(1).strip() if pmh_match else ""
-        past_medical_history = re.split(r'\n|\r', past_medical_history_text)
-        past_medical_history = [line.strip() for line in past_medical_history if line.strip()]
+        pmhmatch = re.search(r"Past Medical History.*?:\s*(.*?)\n\n", transcripttext, re.DOTALL)
+        pastmedicalhistorytext = pmhmatch.group(1).strip() if pmhmatch else ""
+        pastmedicalhistory = re.split(r'\n|\r', pastmedicalhistorytext)
+        pastmedicalhistory = [line.strip() for line in pastmedicalhistory if line.strip()]
         
         # Extract Medications
-        med_match = re.search(r"Medications:\s*(.*?)\n\n", transcript_text, re.DOTALL)
-        medications_text = med_match.group(1).strip() if med_match else ""
-        meds_lines = medications_text.splitlines()
-        medications = [re.sub(r"^\d+\.\s*", "", line).strip() for line in meds_lines if line.strip()]
+        medmatch = re.search(r"Medications:\s*(.*?)\n\n", transcripttext, re.DOTALL)
+        medicationstext = medmatch.group(1).strip() if medmatch else ""
+        medslines = medicationstext.splitlines()
+        medications = [re.sub(r"^\d+\.\s*", "", line).strip() for line in medslines if line.strip()]
         
-        typical_responses = {
+        typicalresponses = {
             "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
             "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
             "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
@@ -517,11 +517,11 @@ if mode == "Patient Simulation":
         }
         
         return {
-            "chief_complaint": chief_complaint,
-            "history_of_present_illness": history_of_present_illness,
-            "past_medical_history": past_medical_history,
+            "chief complaint": chiefcomplaint,
+            "history of present illness": historyofpresentillness,
+            "past medical history": pastmedicalhistory,
             "medications": medications,
-            "typical_responses": typical_responses
+            "typical responses": typicalresponses
         }
 
     st.title("Interactive AI Patient Simulation")
