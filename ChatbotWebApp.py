@@ -450,17 +450,16 @@ if mode == "Discharge Instructions":
             originaltext = data[0]
             st.subheader("Original Text")
             st.write(originaltext)
-            # Initialize LLM pipeline for simplification.
+            # Initialize DeepSeek client for simplification.
             with st.spinner("Initializing DeepSeek client..."):
-                # Instantiate the DeepSeek client (adjust the instantiation as needed for your environment)
                 deepseekclient = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
             
             # Optional: Allow the user to provide patient context for personalization.
             patientcontext = st.text_input("Enter patient context (optional):")
             
             with st.spinner("Simplifying text using DeepSeek..."):
-                # Use the custom function that builds a prompt and calls DeepSeek for simplification.
-                simplifiedtext = simplifytextwithdeepseek(originaltext, deepseekclient, patientcontext=patientcontext
+                # Corrected: Added the missing closing parenthesis.
+                simplifiedtext = simplifytextwithdeepseek(originaltext, deepseekclient, patientcontext=patientcontext)
             
             st.subheader("Simplified Text")
             st.write(simplifiedtext)
