@@ -597,7 +597,7 @@ if mode == "Patient Simulation":
                 ]
             )
             airesponse = response.choices[0].message.content
-            st.session_state.simulation_messages.append({"role": "assistant", "content": airesponse})
+            st.session_state.simulationmessages.append({"role": "assistant", "content": airesponse})
             st.chat_message("assistant").write(airesponse)
         except Exception as e:
             st.error(f"An error occurred in the simulation: {e}")
