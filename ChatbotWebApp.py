@@ -431,7 +431,7 @@ if mode == "Discharge Instructions":
     st.title("Discharge Instructions Simplification")
     uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
     if uploadfile is not None:
-        data = loadandpreprocessdata(uploadfile)
+        data = loadandpreprocess(uploadfile)
         if data:
             # For demonstration, process the first instruction in the file.
             originaltext = data[0]
