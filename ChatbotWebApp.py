@@ -357,6 +357,43 @@ class MedAI:
     def addtohistory(self, role: str, content: str):
         self.conversation_history.append({"role": role, "content": content})
 
+    def parse_transcript(transcript_text: str) -> dict:
+        # Extract Chief Complaint from the transcript
+        cc_match = re.search(r"Chief Complaint:\s*(.*)", transcript_text)
+        chief_complaint = cc_match.group(1).strip() if cc_match else "Shortness of breath and swelling in my legs."
+                
+        # Extract History of Present Illness (HPI)
+        hpi_match = re.search(r"History of Present Illness \(HPI\):\s*(.*?)\n\n", transcript_text, re.DOTALL)
+        history_of_present_illness = hpi_match.group(1).strip() if hpi_match else transcript_text[:100]
+                
+        # Extract Past Medical History (PMH)
+        pmh_match = re.search(r"Past Medical History.*?:\s*(.*?)\n\n", transcript_text, re.DOTALL)
+        past_medical_history_text = pmh_match.group(1).strip() if pmh_match else ""
+        past_medical_history = re.split(r'\n|\r', past_medical_history_text)
+        past_medical_history = [line.strip() for line in past_medical_history if line.strip()]
+                
+        # Extract Medications
+        med_match = re.search(r"Medications:\s*(.*?)\n\n", transcript_text, re.DOTALL)
+        medications_text = med_match.group(1).strip() if med_match else ""
+        meds_lines = medications_text.splitlines()
+        medications = [re.sub(r"^\d+\.\s*", "", line).strip() for line in meds_lines if line.strip()]
+                
+        typical_responses = {
+                    "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
+                    "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
+                    "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
+                    "are you taking all your medications?": "Yes, I haven't missed any doses.",
+                    "any chest pain?": "No, no chest pain.",
+        }
+                
+        return {
+                    "chief_complaint": chief_complaint,
+                    "history_of_present_illness": history_of_present_illness,
+                    "past_medical_history": past_medical_history,
+                    "medications": medications,
+                    "typical_responses": typical_responses
+        }
+
 # Streamlit UI
 st.sidebar.title("Select Mode")
 mode = st.sidebar.selectbox("Choose an application mode", ["Chatbot", "Patient Simulation"])
@@ -486,44 +523,9 @@ if mode == "Chatbot":
         st.warning("API keys are not configured. Please set them as secrets in Streamlit Cloud.")
         
 elif mode == "Patient Simulation":
-    def parse_transcript(transcript_text: str) -> dict:
-        # Extract Chief Complaint from the transcript
-        cc_match = re.search(r"Chief Complaint:\s*(.*)", transcript_text)
-        chief_complaint = cc_match.group(1).strip() if cc_match else "Shortness of breath and swelling in my legs."
-                
-        # Extract History of Present Illness (HPI)
-        hpi_match = re.search(r"History of Present Illness \(HPI\):\s*(.*?)\n\n", transcript_text, re.DOTALL)
-        history_of_present_illness = hpi_match.group(1).strip() if hpi_match else transcript_text[:100]
-                
-        # Extract Past Medical History (PMH)
-        pmh_match = re.search(r"Past Medical History.*?:\s*(.*?)\n\n", transcript_text, re.DOTALL)
-        past_medical_history_text = pmh_match.group(1).strip() if pmh_match else ""
-        past_medical_history = re.split(r'\n|\r', past_medical_history_text)
-        past_medical_history = [line.strip() for line in past_medical_history if line.strip()]
-                
-        # Extract Medications
-        med_match = re.search(r"Medications:\s*(.*?)\n\n", transcript_text, re.DOTALL)
-        medications_text = med_match.group(1).strip() if med_match else ""
-        meds_lines = medications_text.splitlines()
-        medications = [re.sub(r"^\d+\.\s*", "", line).strip() for line in meds_lines if line.strip()]
-                
-        typical_responses = {
-                    "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
-                    "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
-                    "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
-                    "are you taking all your medications?": "Yes, I haven't missed any doses.",
-                    "any chest pain?": "No, no chest pain.",
-        }
-                
-        return {
-                    "chief_complaint": chief_complaint,
-                    "history_of_present_illness": history_of_present_illness,
-                    "past_medical_history": past_medical_history,
-                    "medications": medications,
-                    "typical_responses": typical_responses
-        }
-    
+
     st.title("Interactive AI Patient Simulation")
+    chatbot = MedAI()
     
     # Upload the clinical transcript (TXT file)
     uploaded_file = st.file_uploader("Upload the clinical transcript (TXT file)", type=["txt"])
