@@ -525,86 +525,86 @@ if mode == "Chatbot":
 elif mode == "Patient Simulation":
 
     st.title("Interactive AI Patient Simulation")
-    chatbot = MedAI()
-    
-    # Upload the clinical transcript (TXT file)
-    uploaded_file = st.file_uploader("Upload the clinical transcript (TXT file)", type=["txt"])
-    if uploaded_file is not None:
-        transcript_text = uploaded_file.read().decode("utf-8")
-        st.subheader("Transcript Content")
-        st.text_area("Transcript", transcript_text, height=200)
-        simulated_patient_case = parse_transcript(transcript_text)
-    else:
-        # Default simulated patient case if no transcript is provided.
-        simulated_patient_case = {
-            "chief_complaint": "Shortness of breath and swelling in my legs.",
-            "history_of_present_illness": "The patient reports increasing shortness of breath over the past week, especially when lying down. They also noticed swelling in their ankles and legs. They feel tired more easily.",
-            "past_medical_history": ["Hypertension", "Type 2 Diabetes"],
-            "medications": ["Lisinopril", "Metformin"],
-            "typical_responses": {
-                "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
-                "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
-                "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
-                "are you taking all your medications?": "Yes, I haven't missed any doses.",
-                "any chest pain?": "No, no chest pain.",
+        chatbot = MedAI()
+        
+        # Upload the clinical transcript (TXT file)
+        uploaded_file = st.file_uploader("Upload the clinical transcript (TXT file)", type=["txt"])
+        if uploaded_file is not None:
+            transcript_text = uploaded_file.read().decode("utf-8")
+            st.subheader("Transcript Content")
+            st.text_area("Transcript", transcript_text, height=200)
+            simulated_patient_case = parse_transcript(transcript_text)
+        else:
+            # Default simulated patient case if no transcript is provided.
+            simulated_patient_case = {
+                "chief_complaint": "Shortness of breath and swelling in my legs.",
+                "history_of_present_illness": "The patient reports increasing shortness of breath over the past week, especially when lying down. They also noticed swelling in their ankles and legs. They feel tired more easily.",
+                "past_medical_history": ["Hypertension", "Type 2 Diabetes"],
+                "medications": ["Lisinopril", "Metformin"],
+                "typical_responses": {
+                    "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
+                    "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
+                    "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
+                    "are you taking all your medications?": "Yes, I haven't missed any doses.",
+                    "any chest pain?": "No, no chest pain.",
+                }
             }
-        }
-    
-    # -----------------------------------------------------------------------------
-    # 2. Initialize or Retrieve Chat Session State
-    # -----------------------------------------------------------------------------
-    if "simulation_messages" not in st.session_state:
-        st.session_state["simulation_messages"] = [{
-            "role": "assistant",
-            "content": f"Hello doctor, I'm here because of {simulated_patient_case['chief_complaint']}."
-        }]
-    
-    for msg in st.session_state.simulation_messages:
-        st.chat_message(msg["role"]).write(msg["content"])
-    
-    # -----------------------------------------------------------------------------
-    # 3. Chat Input and AI Simulation Response
-    # -----------------------------------------------------------------------------
-    prompt = st.chat_input(key="simulation_input")
-    if prompt:
-        # Add user's prompt to conversation history.
-        st.session_state.simulation_messages.append({"role": "user", "content": prompt})
-        st.chat_message("user").write(prompt)
-    
-        # Build conversation context from the chat history.
-        conversation_context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.simulation_messages])
         
-        # Construct the LLM prompt using the simulated case and conversation so far.
-        llm_prompt = textwrap.dedent(f"""
-            You are a patient with heart failure. Your chief complaint is {simulated_patient_case['chief_complaint']}.
-            Your history includes: {', '.join(simulated_patient_case['past_medical_history'])}.
-            You are currently taking: {', '.join(simulated_patient_case['medications'])}.
+        # -----------------------------------------------------------------------------
+        # 2. Initialize or Retrieve Chat Session State
+        # -----------------------------------------------------------------------------
+        if "simulation_messages" not in st.session_state:
+            st.session_state["simulation_messages"] = [{
+                "role": "assistant",
+                "content": f"Hello doctor, I'm here because of {simulated_patient_case['chief_complaint']}."
+            }]
+        
+        for msg in st.session_state.simulation_messages:
+            st.chat_message(msg["role"]).write(msg["content"])
+        
+        # -----------------------------------------------------------------------------
+        # 3. Chat Input and AI Simulation Response
+        # -----------------------------------------------------------------------------
+        prompt = st.chat_input(key="simulation_input")
+        if prompt:
+            # Add user's prompt to conversation history.
+            st.session_state.simulation_messages.append({"role": "user", "content": prompt})
+            st.chat_message("user").write(prompt)
+        
+            # Build conversation context from the chat history.
+            conversation_context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.simulation_messages])
             
-            Here is the conversation so far:
-            {conversation_context}
+            # Construct the LLM prompt using the simulated case and conversation so far.
+            llm_prompt = textwrap.dedent(f"""
+                You are a patient with heart failure. Your chief complaint is {simulated_patient_case['chief_complaint']}.
+                Your history includes: {', '.join(simulated_patient_case['past_medical_history'])}.
+                You are currently taking: {', '.join(simulated_patient_case['medications'])}.
+                
+                Here is the conversation so far:
+                {conversation_context}
+                
+                Respond to the last message as the patient would, drawing from your simulated details and typical responses. Be concise and realistic.
+            """)
             
-            Respond to the last message as the patient would, drawing from your simulated details and typical responses. Be concise and realistic.
-        """)
-        
-        # Retrieve the OpenAI API key from secrets.
-        openai_api_key_simulation = st.secrets.get("OPENAI_API_KEY")
-        if not openai_api_key_simulation:
-            st.error("OpenAI API key is required for the simulation.")
-            st.stop()
-        
-        # Initialize OpenAI client.
-        client_simulation = OpenAI(api_key=openai_api_key_simulation)
-        
-        try:
-            response = client_simulation.chat.completions.create(
-                model="gpt-4o",  # Change to your preferred model if needed.
-                messages=[
-                    {"role": "system", "content": "You are a patient in a medical simulation."},
-                    {"role": "user", "content": llm_prompt},
-                ]
-            )
-            ai_response = response.choices[0].message.content
-            st.session_state.simulation_messages.append({"role": "assistant", "content": ai_response})
-            st.chat_message("assistant").write(ai_response)
-        except Exception as e:
-            st.error(f"An error occurred in the simulation: {e}")
+            # Retrieve the OpenAI API key from secrets.
+            openai_api_key_simulation = st.secrets.get("OPENAI_API_KEY")
+            if not openai_api_key_simulation:
+                st.error("OpenAI API key is required for the simulation.")
+                st.stop()
+            
+            # Initialize OpenAI client.
+            client_simulation = OpenAI(api_key=openai_api_key_simulation)
+            
+            try:
+                response = client_simulation.chat.completions.create(
+                    model="gpt-4o",  # Change to your preferred model if needed.
+                    messages=[
+                        {"role": "system", "content": "You are a patient in a medical simulation."},
+                        {"role": "user", "content": llm_prompt},
+                    ]
+                )
+                ai_response = response.choices[0].message.content
+                st.session_state.simulation_messages.append({"role": "assistant", "content": ai_response})
+                st.chat_message("assistant").write(ai_response)
+            except Exception as e:
+                st.error(f"An error occurred in the simulation: {e}")
