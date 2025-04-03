@@ -567,7 +567,7 @@ if mode == "Patient Simulation":
     prompt = st.chat_input(key="simulation_input")
     if prompt:
         # Add user's prompt to conversation history.
-        st.session_state.simulation_messages.append({"role": "user", "content": prompt})
+        st.session_state.simulationmessages.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
     
         # Build conversation context from the chat history.
