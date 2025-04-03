@@ -5,6 +5,7 @@ import requests
 import nltk
 import textwrap
 import re
+import textstat
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 import streamlit as st
@@ -12,12 +13,9 @@ from bs4 import BeautifulSoup
 from openai import OpenAI
 from google import genai
 from googlesearch import search as GoogleSearch
-from sentence_transformers import SentenceTransformer, util
-
-# Additional imports for discharge instructions processing
-from sklearn.model_selection import train_test_split
 from transformers import pipeline
-import textstat
+from sklearn.model_selection import train_test_split
+from sentence_transformers import SentenceTransformer, util
 
 # Download necessary NLTK data (do this only once)
 for package in ['punkt', 'punkt_tab']:
@@ -428,7 +426,7 @@ mode = st.sidebar.selectbox("Choose an application mode", ["Chatbot", "Patient S
 
 # --------------------------- Discharge Instructions Mode --------------------------- #
 if mode == "Discharge Instructions":
-    st.title("Discharge Instructions Simplification")
+    st.title("Discharge Instruction")
     uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
     if uploadfile is not None:
         data = loadandpreprocess(uploadfile)
@@ -447,7 +445,7 @@ if mode == "Discharge Instructions":
             st.subheader("Simplified Text")
             st.write(simplifiedtext)
             # Extract key information from the simplified text.
-            keyinfo = extractkeyinformation(simplifiedtext)
+            keyinfo = extractkeyinfo(simplifiedtext)
             st.subheader("Extracted Key Information")
             st.write(keyinfo)
             # Evaluate readability using Flesch Reading Ease.
