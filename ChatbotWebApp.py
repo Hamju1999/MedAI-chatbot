@@ -55,16 +55,31 @@ def loadandpreprocess(uploadfile):
             processeddata.append(cleaned)
     return processeddata
 
-def simplifytextwithllm(text, simplifier, patientcontext=None):
+def simplifytextwithdeepseek(text, deepseekclient, patientcontext=None):
     """
-    Uses a Large Language Model (LLM) to simplify the given text.
+    Uses DeepSeek's LLM to simplify the given text.
     Optionally includes patient-specific context for personalized instructions.
     """
     prompt = text
     if patientcontext:
         prompt = f"Patient context: {patientcontext}\nMedical Instructions: {text}"
-    result = simplifier(prompt, max_length=512, truncation=True)[0]['generated_text']
-    return result
+    # Construct a prompt that instructs DeepSeek to simplify the instructions
+    deepseekprompt = (
+        "Simplify the following medical instructions into clear, patient-friendly language. "
+        "Retain the essential details but use plain language and structure the information for easy reading:\n\n"
+        + prompt
+    )
+    
+    try:
+        response = deepseekclient.chat.completions.create(
+            model="deepseek-reasoner",
+            messages=[{"role": "user", "content": deepseekprompt}],
+        )
+        simplifiedtext = response.choices[0].message.content
+    except Exception as e:
+        simplifiedtext = f"[DeepSeek Error] {e}"
+    
+    return simplifiedtext
 
 def extractkeyinfo(simplifiedtext):
     """
@@ -436,12 +451,17 @@ if mode == "Discharge Instructions":
             st.subheader("Original Text")
             st.write(originaltext)
             # Initialize LLM pipeline for simplification.
-            with st.spinner("Initializing LLM..."):
-                simplifier = pipeline("text2text-generation", model="facebook/bart-large-cnn")
+            with st.spinner("Initializing DeepSeek client..."):
+                # Instantiate the DeepSeek client (adjust the instantiation as needed for your environment)
+                deepseekclient = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
+            
             # Optional: Allow the user to provide patient context for personalization.
             patientcontext = st.text_input("Enter patient context (optional):")
-            with st.spinner("Simplifying text..."):
-                simplifiedtext = simplifytextwithllm(originaltext, simplifier, patientcontext=patientcontext)
+            
+            with st.spinner("Simplifying text using DeepSeek..."):
+                # Use the custom function that builds a prompt and calls DeepSeek for simplification.
+                simplifiedtext = simplifytextwithdeepseek(originaltext, deepseekclient, patientcontext=patientcontext
+            
             st.subheader("Simplified Text")
             st.write(simplifiedtext)
             # Extract key information from the simplified text.
