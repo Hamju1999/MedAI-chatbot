@@ -12,12 +12,12 @@ import streamlit as st
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from google import genai
-from googlesearch import search as GoogleSearch
+from itertools import islice
 from transformers import pipeline
+from googlesearch import search as GoogleSearch
 from sklearn.model_selection import train_test_split
 from sentence_transformers import SentenceTransformer, util
 
-# Download necessary NLTK data (do this only once)
 for package in ['punkt', 'punkt_tab']:
     try:
         nltk.data.find(package)
@@ -25,87 +25,53 @@ for package in ['punkt', 'punkt_tab']:
         print(f"Error finding {package} data: {e}")
         nltk.download(package)
 
-# -------------------- Discharge Instructions Functions -------------------- #
-def loadandpreprocess(uploadfile):
-    """
-    Loads discharge instructions from an uploaded file and preprocesses the text.
-    Supports both .txt and .pdf files.
-    """
-    processeddata = []
-    filename, ext = os.path.splitext(uploadfile.name)
+def load_and_preprocess(uploadfile):
+    _, ext = os.path.splitext(uploadfile.name)
     if ext.lower() == ".pdf":
         try:
             reader = PyPDF2.PdfReader(uploadfile)
-            text = ""
-            for page in reader.pages:
-                text += page.extract_text() or ""
+            text = "".join(page.extract_text() or "" for page in reader.pages)
         except Exception as e:
             st.error(f"Error reading PDF: {e}")
             text = ""
-        lines = text.split("\n")
     else:
-        text = uploadfile.read().decode("utf-8")
-        lines = text.split("\n")
-    for line in lines:
-        line = line.strip()
-        if line:
-            # Remove non-ASCII characters and extra whitespace
-            cleaned = re.sub(r'[^\x00-\x7F]+', ' ', line)
-            cleaned = re.sub(r'\s+', ' ', cleaned)
-            processeddata.append(cleaned)
-    return processeddata
+        text = uploadfile.read().decode("utf-8")    
+    return [
+        re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
+        for line in text.splitlines() if line.strip()
+    ]
 
-def simplifytextwithdeepseek(text, deepseekclient, patientcontext=None):
-    """
-    Uses DeepSeek's LLM to simplify the given text.
-    Optionally includes patient-specific context for personalized instructions.
-    """
-    prompt = text
-    if patientcontext:
-        prompt = f"Patient context: {patientcontext}\nMedical Instructions: {text}"
-    # Construct a prompt that instructs DeepSeek to simplify the instructions
-    deepseekprompt = (
+def simplifytext(text, gptclient, patientcontext=None):
+    prompt = f"Patient context: {patientcontext}\nMedical Instructions: {text}" if patientcontext else text
+    message = (
         "Simplify the following medical instructions into clear, patient-friendly language. "
-        "Retain the essential details but use plain language and structure the information for easy reading:\n\n"
+        "Retain the essential details but use plain language and structure the information for easy reading:\n\n" 
         + prompt
     )
-    
     try:
-        response = deepseekclient.chat.completions.create(
-            model="deepseek-reasoner",
-            messages=[{"role": "user", "content": deepseekprompt}],
+        response = gptclient.chat.completions.create(
+            model="o1-mini",
+            messages=[{"role": "user", "content": message}],
         )
-        simplifiedtext = response.choices[0].message.content
+        return response.choices[0].message.content
     except Exception as e:
-        simplifiedtext = f"[DeepSeek Error] {e}"
-    
-    return simplifiedtext
+        return f"[ChatGPT Error] {e}"
 
 def extractkeyinfo(simplifiedtext):
-    """
-    Extracts key tasks, follow-up actions, and other important information from the simplified text.
-    Uses simple keyword matching.
-    """
     sentences = nltk.sent_tokenize(simplifiedtext)
     keywords = ['follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', 'medication']
     keyphrases = [sent for sent in sentences if any(keyword in sent.lower() for keyword in keywords)]
     return keyphrases
 
 def evaluatereadability(simplifiedtext):
-    """
-    Evaluates the readability of the simplified text using the Flesch Reading Ease score.
-    """
     score = textstat.flesch_reading_ease(simplifiedtext)
     return score
 
-# ------------------------- Similarity Model Loading ------------------------- #
 @st.cache_resource
-def load_similarity_model():
+def loadsimilaritymodel():
     return SentenceTransformer('all-MiniLM-L6-v2')
+similaritymodel = loadsimilaritymodel()
 
-similaritymodel = load_similarity_model()
-
-# ------------------------------ MedAI Class ------------------------------ #
 class MedAI:
     def __init__(self):
         self.conversation_history = []
@@ -120,61 +86,49 @@ class MedAI:
         return text
 
     def loadpdf(self, file_bytes):
-        try:
-            reader = PyPDF2.PdfReader(file_bytes)
-            pdftext = ""
-            for page in reader.pages:
-                pdftext += page.extract_text() or ""
-            st.info("PDF loaded successfully.")
-            return pdftext
-        except Exception as e:
-            st.error(f"Error reading PDF: {e}")
-            return ""
+    try:
+        reader = PyPDF2.PdfReader(file_bytes)
+        pdftext = "".join(page.extract_text() or "" for page in reader.pages)
+        st.info("PDF loaded successfully.")
+        return pdftext
+    except Exception as e:
+        st.error(f"Error reading PDF: {e}")
+        return ""
 
     def pdfquery(self, query: str, pdftext: str) -> str:
-        if pdftext:
-            return (
-                f"Patient Note:\n{pdftext}\n\n"
-                f"Medical Query:\n{query}"
-            )
-        else:
-            return query
+    return f"Patient Note:\n{pdftext}\n\nMedical Query:\n{query}" if pdftext else query
 
     def analyzequery(self, query: str) -> dict:
-        historycontext = "\n".join(
-            [f"{turn['role']}: {turn['content']}" for turn in self.conversation_history[-4:]]
+    historycontext = "\n".join(f"{turn['role']}: {turn['content']}" for turn in self.conversation_history[-4:])
+    prompt = (
+        "Analyze the following medical query. Identify the query type (diagnosis, treatment, prognosis, factual), "
+        "the user intent (information, advice, etc.), and check for the presence of specific medical terminology. "
+        "Return a JSON with keys: 'complexity' (true/false), 'query_type', 'intent', 'medical_terms_present' (true/false), "
+        "and 'parsed_query'.\n\n"
+        f"Conversation History (if any):\n{historycontext}\n\n"
+        f"Query: {query}"
+    )
+    try:
+        response = self.GPTclient.chat.completions.create(
+            model="o1-mini",
+            messages=[{"role": "user", "content": prompt}],
         )
-        prompt = (
-            "Analyze the following medical query. Identify the query type (diagnosis, treatment, prognosis, factual), "
-            "the user intent (information, advice, etc.), and check for the presence of specific medical terminology. "
-            "Return a JSON with keys: 'complexity' (true/false), 'query_type', 'intent', 'medical_terms_present' (true/false), "
-            "and 'parsed_query'.\n\n"
-            f"Conversation History (if any):\n{historycontext}\n\n"
-            f"Query: {query}"
-        )
-        try:
-            response = self.GPTclient.chat.completions.create(
-                model="o1-mini",
-                messages=[{"role": "user", "content": prompt}],
-            )
-            content = response.choices[0].message.content
-            result = json.loads(content)
-        except Exception as e:
-            commonmedterms = ["diabetes", "hypertension", "cancer", "infection", "diagnosis", "treatment", "prognosis"]
-            medicalpresent = any(term in query.lower() for term in commonmedterms)
-            result = {
-                "complexity": len(query) > 50 or medicalpresent,
-                "query_type": "factual",
-                "intent": "information",
-                "medical_terms_present": medicalpresent,
-                "parsed_query": query.strip()
-            }
-        return result
+        result = json.loads(response.choices[0].message.content)
+    except Exception:
+        common_med_terms = {"diabetes", "hypertension", "cancer", "infection", "diagnosis", "treatment", "prognosis"}
+        query_lower = query.lower()
+        medical_present = any(term in query_lower for term in common_med_terms)
+        result = {
+            "complexity": len(query) > 50 or medical_present,
+            "query_type": "factual",
+            "intent": "information",
+            "medical_terms_present": medical_present,
+            "parsed_query": query.strip()
+        }
+    return result
 
     def primaryprompt(self, query: str, pdftext: str, analysis: dict) -> str:
-        context = "\n".join(
-            [f"{turn['role']}: {turn['content']}" for turn in self.conversation_history[-4:]]
-        )
+        context = "\n".join([f"{turn['role']}: {turn['content']}" for turn in self.conversation_history[-4:]])
         basequery = self.pdfquery(query, pdftext)
         if context:
             return f"{context}\n\n{basequery}"
@@ -311,101 +265,99 @@ class MedAI:
         return self.gemrefine(answer)
 
     def searchmedical(self, query: str, num_results: int = 5) -> list:
-        urls = []
-        medicalquery = f"{query} site:pubmed.ncbi.nlm.nih.gov, site:medlineplus.gov, site:cdc.gov, site:mayoclinic.org, site:nih.gov"
-        try:
-            for url in GoogleSearch(medicalquery):
-                urls.append(url)
-                if len(urls) >= num_results:
-                    break
-        except Exception as e:
-            st.error(f"Error during medical search: {e}")
-        return urls
+    medicalquery = (
+        f"{query} site:pubmed.ncbi.nlm.nih.gov, site:medlineplus.gov, "
+        "site:cdc.gov, site:mayoclinic.org, site:nih.gov"
+    )
+    try:
+        return list(islice(GoogleSearch(medicalquery), num_results))
+    except Exception as e:
+        st.error(f"Error during medical search: {e}")
+        return []
 
     def fetchurl(self, url: str) -> str:
-        if not (url.startswith("http://") or url.startswith("https://")):
-            st.warning(f"Skipping invalid URL: {url}")
-            return ""
-        session = requests.Session()
-        headers = {
-            'User-Agent': 'Mozilla/5.0',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
-        }
-        try:
+    if not url.startswith(("http://", "https://")):
+        st.warning(f"Skipping invalid URL: {url}")
+        return ""
+    headers = {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
+    }
+    try:
+        with requests.Session() as session:
             response = session.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
-            for tag in soup(["script", "style"]):
+            for tag in soup.find_all(["script", "style"]):
                 tag.decompose()
-            text = soup.get_text(separator=' ', strip=True)
-            return text
-        except requests.exceptions.HTTPError as http_err:
-            st.error(f"HTTP error fetching {url}: {http_err}")
-        except Exception as e:
-            st.error(f"Error fetching {url}: {e}")
-        return ""
+            return soup.get_text(separator=' ', strip=True)
+    except requests.exceptions.HTTPError as http_err:
+        st.error(f"HTTP error fetching {url}: {http_err}")
+    except Exception as e:
+        st.error(f"Error fetching {url}: {e}")
+    return ""
 
     def splitsentences(self, text: str) -> list:
         return nltk.sent_tokenize(text)
 
     def fetchtexts(self, urls: list) -> list:
-        results = []
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futuretourl = {executor.submit(self.fetchurl, url): url for url in urls}
-            for future in concurrent.futures.as_completed(futuretourl):
-                url = futuretourl[future]
-                try:
-                    text = future.result()
-                    if text:
-                        results.append((url, text))
-                except Exception as e:
-                    st.error(f"Error processing URL {url}: {e}")
-        return results
+    results = []
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_url = {executor.submit(self.fetchurl, url): url for url in urls}
+        for future in concurrent.futures.as_completed(future_to_url):
+            url = future_to_url[future]
+            try:
+                text = future.result()
+            except Exception as e:
+                st.error(f"Error processing URL {url}: {e}")
+            else:
+                if text:
+                    results.append((url, text))
+    return results
 
     def verifyinfo(self, refinedanswer: str, texts: list, threshold: float = 0.75) -> list:
-        matches = []
-        try:
-            refinedembed = similaritymodel.encode(refinedanswer, convert_to_tensor=True)
-        except Exception as e:
-            st.error(f"Error encoding refined answer: {e}")
-            return matches
-
-        for url, text in texts:
-            sentences = self.splitsentences(text)
-            if not sentences:
-                continue
-            try:
-                sentenceembed = similaritymodel.encode(sentences, convert_to_tensor=True)
-                cosinescores = util.cos_sim(refinedembed, sentenceembed)[0]
-                for i, score in enumerate(cosinescores):
-                    if score.item() >= threshold:
-                        matches.append({
-                            'url': url,
-                            'sentence': sentences[i],
-                            'similarity': score.item()
-                        })
-            except Exception as e:
-                st.error(f"Error processing text from {url}: {e}")
-        matches.sort(key=lambda x: x['similarity'], reverse=True)
+    matches = []
+    try:
+        refinedembed = similaritymodel.encode(refinedanswer, convert_to_tensor=True)
+    except Exception as e:
+        st.error(f"Error encoding refined answer: {e}")
         return matches
+    for url, text in texts:
+        sentences = self.splitsentences(text)
+        if not sentences:
+            continue
+        try:
+            sentenceembed = similaritymodel.encode(sentences, convert_to_tensor=True)
+            cosinescores = util.cos_sim(refinedembed, sentenceembed)[0]
+            for i, score in enumerate(cosinescores):
+                similarity = score.item()
+                if similarity >= threshold:
+                    matches.append({
+                        'url': url,
+                        'sentence': sentences[i],
+                        'similarity': similarity
+                    })
+        except Exception as e:
+            st.error(f"Error processing text from {url}: {e}")
+    return sorted(matches, key=lambda x: x['similarity'], reverse=True)
 
     def verifyrefined(self, refinedanswer: str, verificationquery: str) -> dict:
-        st.info(f"Starting verification using query: {verificationquery}")
-        urls = self.searchmedical(verificationquery, num_results=5)
-        if not urls:
-            st.warning("No URLs found for verification.")
-            return {"matches": [], "confidence": 0.0}
-        urltexts = self.fetchtexts(urls)
-        if not urltexts:
-            st.warning("No content fetched for verification.")
-            return {"matches": [], "confidence": 0.0}
-        matches = self.verifyinfo(refinedanswer, urltexts, threshold=0.75)
-        if matches:
-            avgscore = sum(match['similarity'] for match in matches) / len(matches)
-            confidence = avgscore * min(len(matches), 5)
-        else:
-            confidence = 0.0
-        return {"matches": matches, "confidence": confidence}
+    st.info(f"Starting verification using query: {verificationquery}")
+    urls = self.searchmedical(verificationquery, num_results=5)
+    if not urls:
+        st.warning("No URLs found for verification.")
+        return {"matches": [], "confidence": 0.0}
+    urltexts = self.fetchtexts(urls)
+    if not urltexts:
+        st.warning("No content fetched for verification.")
+        return {"matches": [], "confidence": 0.0}
+    matches = self.verifyinfo(refinedanswer, urltexts, threshold=0.75)
+    confidence = (
+        sum(match['similarity'] for match in matches) / len(matches) * min(len(matches), 5)
+        if matches
+        else 0.0
+    )
+    return {"matches": matches, "confidence": confidence}
 
     def synthesizeverifiedinfo(self, verificationmatches: list) -> str:
         if not verificationmatches:
@@ -435,39 +387,28 @@ class MedAI:
     def addtohistory(self, role: str, content: str):
         self.conversation_history.append({"role": role, "content": content})
 
-# ------------------------------ Streamlit UI ------------------------------ #
 st.sidebar.title("Select Mode")
 mode = st.sidebar.selectbox("Choose an application mode", ["Chatbot", "Patient Simulation", "Discharge Instructions"])
 
-# --------------------------- Discharge Instructions Mode --------------------------- #
 if mode == "Discharge Instructions":
     st.title("Discharge Instruction")
     uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
     if uploadfile is not None:
         data = loadandpreprocess(uploadfile)
         if data:
-            # For demonstration, process the first instruction in the file.
             originaltext = data[0]
             st.subheader("Original Text")
             st.write(originaltext)
-            # Initialize DeepSeek client for simplification.
             with st.spinner("Initializing DeepSeek client..."):
-                deepseekclient = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
-            
-            # Optional: Allow the user to provide patient context for personalization.
+                gptclient = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
             patientcontext = st.text_input("Enter patient context (optional):")
-            
-            with st.spinner("Simplifying text using DeepSeek..."):
-                # Corrected: Added the missing closing parenthesis.
-                simplifiedtext = simplifytextwithdeepseek(originaltext, deepseekclient, patientcontext=patientcontext)
-            
+            with st.spinner("Simplifying text..."):
+                simplifiedtext = simplifytext(originaltext, gptclient, patientcontext=patientcontext)
             st.subheader("Simplified Text")
             st.write(simplifiedtext)
-            # Extract key information from the simplified text.
             keyinfo = extractkeyinfo(simplifiedtext)
             st.subheader("Extracted Key Information")
             st.write(keyinfo)
-            # Evaluate readability using Flesch Reading Ease.
             readability = evaluatereadability(simplifiedtext)
             st.subheader("Readability Score (Flesch Reading Ease)")
             st.write(readability)
@@ -476,21 +417,16 @@ if mode == "Discharge Instructions":
     else:
         st.info("Please upload a discharge instructions file.")
 
-# --------------------------- Chatbot Mode --------------------------- #
 if mode == "Chatbot":
     st.title("MedAI")
-    
-    # Initialize chatbot only if API keys are available as environment variables
     if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("GOOGLE_API_KEY") and os.environ.get("LLAMA_API_KEY"):
         chatbot = MedAI()
-    
         uploadedfile = st.file_uploader("Upload Health Record", type="pdf")
         if uploadedfile is not None:
             pdftext = chatbot.loadpdf(uploadedfile)
             st.session_state['pdftext'] = pdftext
         else:
             st.session_state['pdftext'] = ""
-    
         query = st.text_input("Enter your medical query:")
         if st.button("Get Answer"):
             if not query:
@@ -498,14 +434,12 @@ if mode == "Chatbot":
             else:
                 chatbot.addtohistory("User", query)
                 pdftext = st.session_state.get('pdftext', "")
-    
                 with st.spinner("Analyzing query..."):
                     analysis = chatbot.analyzequery(query)
                     complexity = analysis.get("complexity", False)
                     intent = analysis.get("intent", "information")
                     medical_terms_present = analysis.get("medical_terms_present", False)
                     parsedquery = analysis.get("parsed_query", query)
-    
                 with st.spinner("Generating primary answer..."):
                     if complexity or medical_terms_present or intent.lower() == "advice":
                         st.info("Detected complex or advice-seeking query. Using detailed model.")
@@ -515,7 +449,6 @@ if mode == "Chatbot":
                         primary = chatbot.gpt4(chatbot.primaryprompt(parsedquery, pdftext, analysis))
                     primaryclean = chatbot.cleantext(primary)
                     chatbot.addtohistory("AI", primaryclean)
-    
                 with st.spinner("Querying multiple models in parallel..."):
                     resultsdict = {}
                     with ThreadPoolExecutor(max_workers=6) as executor:
@@ -531,7 +464,6 @@ if mode == "Chatbot":
                             resultsdict[modelname] = future.result()
                     aggregated = chatbot.aggregate(resultsdict)
                     aggregatedclean = chatbot.cleantext(aggregated)
-    
                     for model_name, answer in resultsdict.items():
                         accuracy_check_prompt = (
                             f"Evaluate the factual accuracy of the following medical answer. "
@@ -539,20 +471,17 @@ if mode == "Chatbot":
                             f"{answer}\n\nAccuracy Assessment for {model_name}:"
                         )
                         accuracy_assessment = chatbot.gemrefine(accuracy_check_prompt)
-    
                 with st.spinner("Refining aggregated answer..."):
                     refined = chatbot.refine(aggregatedclean)
                     refinedclean = chatbot.cleantext(refined)
                     st.subheader("Refined Answer:")
                     st.write(refinedclean)
-    
                 with st.spinner("Verifying refined answer against medical sources..."):
                     verificationresult = chatbot.verifyrefined(refinedclean, parsedquery)
                     verificationmatches = verificationresult.get("matches", [])
                     confidencescore = verificationresult.get("confidence", 0.0)
                     st.subheader("Refined Answer Accuracy (Confidence Score):")
                     st.write(f"{confidencescore:.2f}")
-    
                     filtered_matches = []
                     for match in verificationmatches:
                         try:
@@ -563,7 +492,6 @@ if mode == "Chatbot":
                                 st.warning(f"Filtered out URL due to error: {match['url']}")
                         except Exception as e:
                             st.error(f"Error checking URL {match['url']}: {e}")
-    
                     if filtered_matches:
                         st.subheader("Verification Matches (Top results):")
                         for idx, match in enumerate(filtered_matches[:10], 1):
@@ -573,7 +501,6 @@ if mode == "Chatbot":
                             st.write(f"Matching Sentence: {match['sentence']}")
                     else:
                         st.info("No valid verification matches found after filtering.")
-    
                 with st.spinner("Synthesizing verified information..."):
                     consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
                     if consensusverified:
@@ -581,7 +508,6 @@ if mode == "Chatbot":
                         st.write(consensusverified)
                     else:
                         st.info("No verified information generated.")
-    
                 if refinedclean and consensusverified:
                     with st.spinner("Combining refined and verified information..."):
                         finalverified = chatbot.combinerefinedconsensus(refinedclean, consensusverified)
@@ -593,29 +519,20 @@ if mode == "Chatbot":
     else:
         st.warning("API keys are not configured. Please set them as secrets in Streamlit Cloud.")
 
-# --------------------------- Patient Simulation Mode --------------------------- #
 if mode == "Patient Simulation":
     def parsetranscript(transcripttext: str) -> dict:
-        # Extract Chief Complaint from the transcript
         ccmatch = re.search(r"Chief Complaint:\s*(.*)", transcripttext)
         chiefcomplaint = ccmatch.group(1).strip() if ccmatch else "Shortness of breath and swelling in my legs."
-        
-        # Extract History of Present Illness (HPI)
         hpimatch = re.search(r"History of Present Illness \(HPI\):\s*(.*?)\n\n", transcripttext, re.DOTALL)
         historyofpresentillness = hpimatch.group(1).strip() if hpimatch else transcripttext[:100]
-        
-        # Extract Past Medical History (PMH)
         pmhmatch = re.search(r"Past Medical History.*?:\s*(.*?)\n\n", transcripttext, re.DOTALL)
         pastmedicalhistorytext = pmhmatch.group(1).strip() if pmhmatch else ""
         pastmedicalhistory = re.split(r'\n|\r', pastmedicalhistorytext)
         pastmedicalhistory = [line.strip() for line in pastmedicalhistory if line.strip()]
-        
-        # Extract Medications
         medmatch = re.search(r"Medications:\s*(.*?)\n\n", transcripttext, re.DOTALL)
         medicationstext = medmatch.group(1).strip() if medmatch else ""
         medslines = medicationstext.splitlines()
         medications = [re.sub(r"^\d+\.\s*", "", line).strip() for line in medslines if line.strip()]
-        
         typicalresponses = {
             "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
             "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
@@ -623,7 +540,6 @@ if mode == "Patient Simulation":
             "are you taking all your medications?": "Yes, I haven't missed any doses.",
             "any chest pain?": "No, no chest pain.",
         }
-        
         return {
             "chief complaint": chiefcomplaint,
             "history of present illness": historyofpresentillness,
@@ -631,10 +547,8 @@ if mode == "Patient Simulation":
             "medications": medications,
             "typical responses": typicalresponses
         }
-
+        
     st.title("Interactive AI Patient Simulation")
-    
-    # Upload the clinical transcript (TXT or PDF file)
     uploaded_file = st.file_uploader("Upload Clinical Transcript", type=["txt", "pdf"])
     if uploaded_file is not None:
         transcripttext = uploaded_file.read().decode("utf-8")
@@ -642,7 +556,6 @@ if mode == "Patient Simulation":
         st.text_area("Transcript", transcripttext, height=200)
         simulatedpatientcase = parsetranscript(transcripttext)
     else:
-        # Default simulated patient case if no transcript is provided.
         simulatedpatientcase = {
             "chief complaint": "Shortness of breath and swelling in my legs.",
             "history of present illness": "The patient reports increasing shortness of breath over the past week, especially when lying down. They also noticed swelling in their ankles and legs. They feel tired more easily.",
@@ -656,41 +569,30 @@ if mode == "Patient Simulation":
                 "any chest pain?": "No, no chest pain.",
             }
         }
-    
-    # Initialize or Retrieve Chat Session State
     if "simulationmessages" not in st.session_state:
         st.session_state["simulationmessages"] = [{
             "role": "assistant",
             "content": f"Hello doctor, I'm here because of {simulatedpatientcase['chief complaint']}."
         }]
-    
     for msg in st.session_state.simulationmessages:
         st.chat_message(msg["role"]).write(msg["content"])
-    
-    # Chat Input and AI Simulation Response
     prompt = st.chat_input(key="simulation_input")
     if prompt:
         st.session_state.simulationmessages.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
-    
         conversationcontext = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.simulationmessages])
-        
         llmprompt = textwrap.dedent(f"""
             You are a patient with heart failure. Your chief complaint is {simulatedpatientcase['chief complaint']}.
             Your history includes: {', '.join(simulatedpatientcase['past medical history'])}.
             You are currently taking: {', '.join(simulatedpatientcase['medications'])}.
-            
             Here is the conversation so far:
             {conversationcontext}
-            
             Respond to the last message as the patient would, drawing from your simulated details and typical responses. Be concise and realistic.
         """)
-        
-        clientsimulation = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
-        
+        clientsimulation = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
         try:
             response = clientsimulation.chat.completions.create(
-                model="deepseek-reasoner",
+                model="o1-mini",
                 messages=[
                     {"role": "system", "content": "You are a patient in a medical simulation."},
                     {"role": "user", "content": llmprompt},
