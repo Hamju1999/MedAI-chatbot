@@ -39,7 +39,7 @@ def simplifytext(text, client, patientcontext=None):
     )
     try:
         response = client.chat.completions.create(
-            model="deepseek/deepseek-chat-v3-0324:free",
+            model="openai/o1-mini",
             messages=[{"role": "user", "content": message}],
         )
         return response.choices[0].message.content
