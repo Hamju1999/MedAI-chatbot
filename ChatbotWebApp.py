@@ -40,8 +40,8 @@ def simplifytext(text, client, patientcontext=None):
         "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. "
         "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
     )
-    if prompt in llm_=cache:
-        return llm_=cache[prompt]
+    if prompt in llmcache:
+        return llmcache[prompt]
     try:
         response = client.chat.completions.create(
             model="google/gemini-2.0-flash-thinking-exp:free",
