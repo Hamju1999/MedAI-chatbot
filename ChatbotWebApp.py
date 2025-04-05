@@ -22,22 +22,22 @@ def loadandpreprocess(uploadfile):
     Returns both the full original text and the processed sections.
     """
     _, ext = os.path.splitext(uploadfile.name)
-    fulltext = ""
+    fulltext = ""  # Initialize full_text here
     if ext.lower() == ".pdf":
         try:
             reader = PyPDF2.PdfReader(uploadfile)
-            text_pages = [page.extract_text() or "" for page in reader.pages]
+            textpages = [page.extract_text() or "" for page in reader.pages]
             fulltext = "".join(textpages)
         except Exception as e:
             st.error(f"Error reading PDF: {e}")
     else:
         try:
-            fulltext = uploadfile.read().decode("utf-8")
+            full_text = uploadfile.read().decode("utf-8")
         except Exception as e:
             st.error(f"Error decoding text file: {e}")
     sections = {}
     currentsection = "General"
-    for line in fulltext.splitlines():
+    for line in full_text.splitlines():
         line = line.strip()
         if not line:
             continue
