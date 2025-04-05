@@ -39,17 +39,12 @@ def simplifytext(text, client, patientcontext=None):
     )
     try:
         response = client.chat.completions.create(
-            extra_headers={
-                "HTTP-Referer": "<YOUR_SITE_URL>", # Optional. Site URL for rankings on openrouter.ai.
-                "X-Title": "<YOUR_SITE_NAME>", # Optional. Site title for rankings on openrouter.ai.
-              },
-            extra_body={},
-            model="deepseek/deepseek-r1:free",
+            model="deepseek/auto",
             messages=[{"role": "user", "content": message}],
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"[DeepSeek Error] {e}"
+        return f"[OpenRouter Error] {e}"
 
 def extractkeyinfo(simplifiedtext):
     sentences = nltk.sent_tokenize(simplifiedtext)
