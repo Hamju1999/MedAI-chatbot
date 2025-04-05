@@ -61,7 +61,7 @@ uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf
 if uploadfile is not None:
     data = loadandpreprocess(uploadfile)
     if data:
-        originaltext = data[0]
+        originaltext = " ".join(data)
         st.subheader("Original Text")
         st.write(originaltext)
         client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key=st.secrets["OPENROUTER_API_KEY"])
