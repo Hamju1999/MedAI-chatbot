@@ -7,7 +7,9 @@ import nltk
 import streamlit as st
 from openai import OpenAI
 
-for package in ['punkt', 'punkt_tab']:
+# Ensure necessary NLTK data is downloaded
+nltk_packages = ['punkt', 'punkt_tab']
+for package in nltk_packages:
     try:
         nltk.data.find(package)
     except Exception as e:
@@ -15,6 +17,10 @@ for package in ['punkt', 'punkt_tab']:
         nltk.download(package)
 
 def loadandpreprocess(uploadfile):
+    """
+    Loads and preprocesses text from the uploaded file.
+    Handles both PDF and TXT files.
+    """
     _, ext = os.path.splitext(uploadfile.name)
     if ext.lower() == ".pdf":
         try:
@@ -24,17 +30,25 @@ def loadandpreprocess(uploadfile):
             st.error(f"Error reading PDF: {e}")
             text = ""
     else:
-        text = uploadfile.read().decode("utf-8")    
+        try:
+            text = uploadfile.read().decode("utf-8")
+        except Exception as e:
+            st.error(f"Error decoding text file: {e}")
+            text = ""
     return [
         re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
         for line in text.splitlines() if line.strip()
     ]
 
 def simplifytext(text, client, patientcontext=None):
+    """
+    Simplifies medical text using the OpenAI API.
+    Takes optional patient context as input.
+    """
     prompt = f"Patient context: {patientcontext}\nMedical Instructions: {text}" if patientcontext else text
     message = (
         "Simplify the following medical instructions into clear, patient-friendly language. "
-        "Retain the essential details but use plain language and structure the information for easy reading:\n\n" 
+        "Retain the essential details but use plain language and structure the information for easy reading:\n\n"
         + prompt
     )
     try:
@@ -47,33 +61,46 @@ def simplifytext(text, client, patientcontext=None):
         return f"[OpenRouter Error] {e}"
 
 def extractkeyinfo(simplifiedtext):
+    """
+    Extracts key sentences from the simplified text based on keywords.
+    """
     sentences = nltk.sent_tokenize(simplifiedtext)
     keywords = ['follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', 'medication']
     keyphrases = [sent for sent in sentences if any(keyword in sent.lower() for keyword in keywords)]
     return keyphrases
 
 def evaluatereadability(simplifiedtext):
+    """
+    Evaluates the readability of the simplified text using the Flesch Reading Ease score.
+    """
     score = textstat.flesch_reading_ease(simplifiedtext)
     return score
 
+# Streamlit application
 st.title("Discharge Instruction")
 uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
+
 if uploadfile is not None:
     data = loadandpreprocess(uploadfile)
     if data:
         originaltext = " ".join(data)
         st.subheader("Original Text")
         st.write(originaltext)
+
         with st.spinner("Initializing OpenRouter client..."):
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
+
         patientcontext = st.text_input("Enter patient context (optional):")
+
         with st.spinner("Simplifying text..."):
             simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
         st.subheader("Simplified Text")
         st.write(simplifiedtext)
+
         keyinfo = extractkeyinfo(simplifiedtext)
         st.subheader("Extracted Key Information")
         st.write(keyinfo)
+
         readability = evaluatereadability(simplifiedtext)
         st.subheader("Readability Score (Flesch Reading Ease)")
         st.write(readability)
