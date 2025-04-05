@@ -399,7 +399,7 @@ if mode == "Discharge Instructions":
             originaltext = data[0]
             st.subheader("Original Text")
             st.write(originaltext)
-            with st.spinner("Initializing DeepSeek client..."):
+            with st.spinner("Initializing OpenAI client..."):
                 gptclient = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
             patientcontext = st.text_input("Enter patient context (optional):")
             with st.spinner("Simplifying text..."):
