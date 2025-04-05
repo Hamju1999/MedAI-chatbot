@@ -32,19 +32,21 @@ def loadandpreprocess(uploadfile):
 
 def simplifytext(text, client, patientcontext=None):
     prompt = (
-        "Convert the following discharge instructions into plain, patient-friendly language while retaining "
-        "all crucial details. Focus on clarity and ease of understanding for someone with limited medical knowledge.\n\n"
+        "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
+        "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. "
+        "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
         f"Patient Context:\n{patientcontext}\n\n"
         "Medical Instructions:\n"
         f"{text}\n\n"
         "From these instructions, please:\n"
-        "1) Identify and list the tasks the patient needs to do.\n"
+        "1) Identify and list all the tasks the patient needs to do.\n"
         "2) Identify and list any follow-up appointments the patient should schedule or attend.\n"
-        "3) Explain why each task or appointment is important, even if you have to infer it from the context.\n\n"
+        "3) Explain the importance of each task or appointment (inferring the rationale if not explicitly stated).\n\n"
         "Organize your response into three sections, each with bullet points:\n"
         "• Tasks\n"
         "• Follow-up Appointments\n"
         "• Importance\n\n"
+        "Ensure that the final simplified text has a Flesch Reading Ease score between 80 and 90.\n\n"
         "Patient Action Items:\n"
     )
     try:
