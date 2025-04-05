@@ -39,7 +39,7 @@ def simplifytext(text, client, patientcontext=None):
     )
     try:
         response = client.chat.completions.create(
-            model="google/gemini-2.0-flash-thinking-exp:free",
+            model="deepseek/deepseek-r1:free",
             messages=[{"role": "user", "content": message}],
         )
         return response.choices[0].message.content
