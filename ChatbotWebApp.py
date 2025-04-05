@@ -39,7 +39,7 @@ def simplifytext(text, client, patientcontext=None):
     )
     try:
         response = client.chat.completions.create(
-            model="google/palm-2-chat-bison-32k",
+            model="x-ai/grok-beta",
             messages=[{"role": "user", "content": message}],
         )
         return response.choices[0].message.content
