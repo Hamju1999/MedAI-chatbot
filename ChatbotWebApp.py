@@ -32,16 +32,20 @@ def loadandpreprocess(uploadfile):
 
 def simplifytext(text, client, patientcontext=None):
     prompt = (
-        "Simplify the following medical instructions into clear, patient-friendly language. "
-        "Retain the essential details but use plain language and structure the information for easy reading:\n\n" 
-        f"Patient Context: {patientcontext}\n\n"
-        f"Medical Instructions::\n{text}\n\n"
-        f"From the discharge instructions above, identify and list all the tasks the patient needs to do, any follow-up appointments they need to schedule or attend, and explain the importance of each item. "
-        f"Use clear, plain language that a patient with limited medical knowledge can understand. "
-        f"Organize the output into three main sections: 'Tasks:', 'Follow-up Appointments:', and 'Importance:'. "
-        f"Under each section, use a bulleted list for each item. Focus specifically on actionable steps for the patient's recovery and ongoing health management. "
-        f"If the importance of a task or follow-up is not explicitly stated, infer it based on the medical context.\n\n"
-        f"Patient Action Items:"
+        "Convert the following discharge instructions into plain, patient-friendly language while retaining "
+        "all crucial details. Focus on clarity and ease of understanding for someone with limited medical knowledge.\n\n"
+        f"Patient Context:\n{patientcontext}\n\n"
+        "Medical Instructions:\n"
+        f"{text}\n\n"
+        "From these instructions, please:\n"
+        "1) Identify and list the tasks the patient needs to do.\n"
+        "2) Identify and list any follow-up appointments the patient should schedule or attend.\n"
+        "3) Explain why each task or appointment is important, even if you have to infer it from the context.\n\n"
+        "Organize your response into three sections, each with bullet points:\n"
+        "• Tasks\n"
+        "• Follow-up Appointments\n"
+        "• Importance\n\n"
+        "Patient Action Items:\n"
     )
     try:
         response = client.chat.completions.create(
