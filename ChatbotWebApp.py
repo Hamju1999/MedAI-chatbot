@@ -39,7 +39,7 @@ def simplifytext(text, client, patientcontext=None):
     )
     try:
         response = client.chat.completions.create(
-            model="openai/o1-mini",
+            model="anthropic/claude-3.7-sonnet:beta",
             messages=[{"role": "user", "content": message}],
         )
         return response.choices[0].message.content
