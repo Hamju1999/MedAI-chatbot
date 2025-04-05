@@ -38,6 +38,7 @@ def simplifytext(text, client, patientcontext=None):
         "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
         "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. "
         "Ensure that the final simplified text has a Flesch Reading Ease score between 80 and 90.\n\n"
+        "Output should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
     )
     try:
         response = client.chat.completions.create(
