@@ -80,7 +80,7 @@ def simplifytext(textsections, client, patientcontext=None):
             allactionitems.append(f"**{sectionname}:**\n{response.choices[0].message.content}\n\n")
         except Exception as e:
             allactionitems.append(f"[OpenRouter Error in {sectionname}] {e}\n\n")
-    return "\n".join(all_action_items)
+    return "\n".join(allactionitems)
 
 def extractkeyinfo(simplifiedtext):
     """
