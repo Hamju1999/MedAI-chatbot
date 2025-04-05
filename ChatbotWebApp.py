@@ -53,7 +53,7 @@ def loadandpreprocess(uploadfile):
             for line in lines if line.strip()
         ]
         processedsections[sectionname] = " ".join(processedlines)
-    return full_text, processedsections
+    return fulltext, processedsections
 
 def simplifytext(textsections, client, patientcontext=None):
     """
