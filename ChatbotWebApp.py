@@ -56,7 +56,7 @@ def loadandpreprocess(uploadfile):
 
 def simplifytext(textsections, client, patientcontext=None):
     """
-    Simplifies medical text sections using a more detailed prompt.
+    Simplifies medical text sections with a focus on tasks, follow-ups, and importance.
     """
     simplifiedsections = {}
     for sectionname, text in textsections.items():
@@ -64,14 +64,12 @@ def simplifytext(textsections, client, patientcontext=None):
             f"Patient Context: {patientcontext}\n\n"
             f"Medical Section Title: {sectionname}\n"
             f"Original Medical Text: {text}\n\n"
-            f"Simplify the above medical text for a patient with limited medical knowledge. "
-            f"Use clear, plain language and avoid medical jargon. Explain any necessary medical terms simply. "
-            f"Retain all essential information, including specific instructions, medication names, dosages, frequencies, and follow-up details. "
-            f"Structure the information logically and use formatting like bullet points or numbered lists where appropriate for readability. "
-            f"Focus on what the patient needs to know and do. If the section is 'Discharge Medications', clearly list each medication with its purpose (if discernible from the text), dosage, and how often to take it. "
-            f"If the section is 'Follow-up Appointments', clearly state the type of appointment, date, time, and contact information if provided. "
-            f"If the section is 'Signs and Symptoms to Watch For' or 'When to Seek Medical Attention', use simple terms to describe what the patient should look out for and when they should seek help.\n\n"
-            f"Simplified Patient-Friendly Text:"
+            f"Identify and list all the tasks the patient needs to do, any follow-up appointments they need to schedule or attend, and explain the importance of each item from the text below. "
+            f"Use clear, plain language that a patient with limited medical knowledge can understand. "
+            f"Format the output as a clear, bulleted list under the headings 'Tasks', 'Follow-up Appointments', and 'Importance'. "
+            f"Focus specifically on actionable steps for the patient's recovery and ongoing health management. "
+            f"If information about importance is not explicitly stated, infer the importance based on the context (e.g., taking medication as prescribed is important for managing the condition).\n\n"
+            f"Patient Action Items:"
         )
         try:
             response = client.chat.completions.create(
@@ -81,14 +79,14 @@ def simplifytext(textsections, client, patientcontext=None):
             simplifiedsections[sectionname] = response.choices[0].message.content
         except Exception as e:
             simplifiedsections[sectionname] = f"[OpenRouter Error in {sectionname}] {e}"
-    return simplified_sections
+    return simplifiedsections
 
 def extractkeyinfo(simplifiedsections):
     """
     Extracts key information from the simplified text sections.
     """
     keyinfo = []
-    keywords = ['follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', 'medication']
+    keywords = ['follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', 'medication', 'important', 'need to']
     for sectionname, simplifiedtext in simplifiedsections.items():
         sentences = nltk.sent_tokenize(simplifiedtext)
         for sent in sentences:
@@ -96,7 +94,7 @@ def extractkeyinfo(simplifiedsections):
                 keyinfo.append(f"[{sectionname}] {sent}")
     return keyinfo
 
-def evaluatereadability(simplified_sections):
+def evaluatereadability(simplifiedsections):
     """
     Evaluates the readability of the simplified text sections.
     """
@@ -107,7 +105,7 @@ def evaluatereadability(simplified_sections):
     return readabilityscores
 
 # Streamlit application
-st.title("Discharge Instruction Simplifier")
+st.title("Discharge Instruction - Action Items")
 uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
 
 if uploadfile is not None:
@@ -122,20 +120,22 @@ if uploadfile is not None:
 
         patientcontext = st.text_input("Enter patient context (optional):")
 
-        with st.spinner("Simplifying text..."):
+        with st.spinner("Identifying Action Items..."):
             simplifieddata = simplifytext(data, client, patientcontext=patientcontext)
 
-        st.subheader("Simplified Text Sections")
+        st.subheader("Key Action Items, Follow-ups, and Importance")
         for sectionname, text in simplifieddata.items():
-            st.write(f"**{sectionname}:** {text}")
+            st.write(f"**{sectionname}:**")
+            st.write(text)
 
-        keyinfo = extractkeyinfo(simplifieddata)
-        st.subheader("Extracted Key Information")
-        st.write(keyinfo)
-
-        readability = evaluatereadability(simplifieddata)
-        st.subheader("Readability Scores (Flesch Reading Ease) per Section")
-        st.write(readability)
+        # Optional: You can choose to display the extracted key info and readability if needed
+        # keyinfo = extractkeyinfo(simplifieddata)
+        # st.subheader("Extracted Key Information")
+        # st.write(keyinfo)
+        #
+        # readability = evaluatereadability(simplifieddata)
+        # st.subheader("Readability Scores (Flesch Reading Ease) per Section")
+        # st.write(readability)
 
     else:
         st.warning("No valid data found in the file.")
