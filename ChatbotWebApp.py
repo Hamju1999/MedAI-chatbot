@@ -32,22 +32,12 @@ def loadandpreprocess(uploadfile):
 
 def simplifytext(text, client, patientcontext=None):
     prompt = (
+        f"Patient Context:\n{patientcontext}\n\n"
+        f"Medical Instructions:\n{text}\n\n"
+        "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
         "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
         "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. "
-        "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
-        f"Patient Context:\n{patientcontext}\n\n"
-        "Medical Instructions:\n"
-        f"{text}\n\n"
-        "From these instructions, please:\n"
-        "1) Identify and list all the tasks the patient needs to do.\n"
-        "2) Identify and list any follow-up appointments the patient should schedule or attend.\n"
-        "3) Explain the importance of each task or appointment (inferring the rationale if not explicitly stated).\n\n"
-        "Organize your response into three sections, each with bullet points:\n"
-        "• Tasks\n"
-        "• Follow-up Appointments\n"
-        "• Importance\n\n"
         "Ensure that the final simplified text has a Flesch Reading Ease score between 80 and 90.\n\n"
-        "Patient Action Items:\n"
     )
     try:
         response = client.chat.completions.create(
@@ -75,8 +65,8 @@ if uploadfile is not None:
     data = loadandpreprocess(uploadfile)
     if data:
         originaltext = " ".join(data)
-        st.subheader("Original Text")
-        st.write(originaltext)
+        #st.subheader("Original Text")
+        #st.write(originaltext)
         with st.spinner("Initializing OpenRouter client..."):
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
         patientcontext = st.text_input("Enter patient context (optional):")
@@ -84,9 +74,9 @@ if uploadfile is not None:
             simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
         st.subheader("Simplified Text")
         st.write(simplifiedtext)
-        keyinfo = extractkeyinfo(simplifiedtext)
-        st.subheader("Extracted Key Information")
-        st.write(keyinfo)
+        #keyinfo = extractkeyinfo(simplifiedtext)
+        #st.subheader("Extracted Key Information")
+        #st.write(keyinfo)
         readability = evaluatereadability(simplifiedtext)
         st.subheader("Readability Score (Flesch Reading Ease)")
         st.write(readability)
