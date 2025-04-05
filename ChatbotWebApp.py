@@ -37,7 +37,7 @@ def loadandpreprocess(uploadfile):
             st.error(f"Error decoding text file: {e}")
     sections = {}
     currentsection = "General"
-    for line in full_text.splitlines():
+    for line in fulltext.splitlines():
         line = line.strip()
         if not line:
             continue
