@@ -57,7 +57,7 @@ def evaluatereadability(simplifiedtext):
     return score
 
 st.title("Discharge Instruction")
-if os.environ.get("OPENROUTER_API_KEY")
+if os.environ.get("OPENROUTER_API_KEY"):
     uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
     if uploadfile is not None:
         data = loadandpreprocess(uploadfile)
