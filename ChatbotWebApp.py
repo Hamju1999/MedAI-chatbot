@@ -31,16 +31,22 @@ def loadandpreprocess(uploadfile):
     ]
 
 def simplifytext(text, client, patientcontext=None):
-    prompt = f"Patient context: {patientcontext}\nMedical Instructions: {text}" if patientcontext else text
-    message = (
+    prompt = (
         "Simplify the following medical instructions into clear, patient-friendly language. "
         "Retain the essential details but use plain language and structure the information for easy reading:\n\n" 
-        + prompt
+        f"Patient Context: {patientcontext}\n\n"
+        f"Medical Instructions::\n{text}\n\n"
+        f"From the discharge instructions above, identify and list all the tasks the patient needs to do, any follow-up appointments they need to schedule or attend, and explain the importance of each item. "
+        f"Use clear, plain language that a patient with limited medical knowledge can understand. "
+        f"Organize the output into three main sections: 'Tasks:', 'Follow-up Appointments:', and 'Importance:'. "
+        f"Under each section, use a bulleted list for each item. Focus specifically on actionable steps for the patient's recovery and ongoing health management. "
+        f"If the importance of a task or follow-up is not explicitly stated, infer it based on the medical context.\n\n"
+        f"Patient Action Items:"
     )
     try:
         response = client.chat.completions.create(
             model="google/gemini-2.0-flash-thinking-exp:free",
-            messages=[{"role": "user", "content": message}],
+            messages=[{"role": "user", "content": prompt}],
         )
         return response.choices[0].message.content
     except Exception as e:
