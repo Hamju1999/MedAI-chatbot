@@ -8,11 +8,11 @@ import streamlit as st
 from openai import OpenAI
 
 for package in ['punkt', 'punkt_tab']:
-    try:
-        nltk.data.find(package)
-    except Exception as e:
-        print(f"Error finding {package} data: {e}")
-        nltk.download(package)
+    try:
+        nltk.data.find(package)
+    except Exception as e:
+        print(f"Error finding {package} data: {e}")
+        nltk.download(package)
 
 def loadandpreprocess(uploadfile):
     _, ext = os.path.splitext(uploadfile.name)
