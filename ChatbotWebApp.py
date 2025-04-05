@@ -13,6 +13,7 @@ for package in ['punkt', 'punkt_tab']:
     except Exception as e:
         print(f"Error finding {package} data: {e}")
         nltk.download(package)
+llmcache = {}
 
 def loadandpreprocess(uploadfile):
     _, ext = os.path.splitext(uploadfile.name)
@@ -39,12 +40,18 @@ def simplifytext(text, client, patientcontext=None):
         "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. "
         "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
     )
+    if prompt in llm_=cache:
+        return llm_=cache[prompt]
     try:
         response = client.chat.completions.create(
             model="google/gemini-2.0-flash-thinking-exp:free",
             messages=[{"role": "user", "content": prompt}],
+            temperature=0,  
+            top_p=1        
         )
-        return response.choices[0].message.content
+        result = response.choices[0].message.content
+        llmcache[prompt] = result
+        return result
     except Exception as e:
         return f"[OpenRouter Error] {e}"
 
