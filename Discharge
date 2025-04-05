@@ -1,0 +1,74 @@
+import os
+import PyPDF2
+import nltk
+import re
+import textstat
+import streamlit as st
+from openai import OpenAI
+
+def loadandpreprocess(uploadfile):
+    _, ext = os.path.splitext(uploadfile.name)
+    if ext.lower() == ".pdf":
+        try:
+            reader = PyPDF2.PdfReader(uploadfile)
+            text = "".join(page.extract_text() or "" for page in reader.pages)
+        except Exception as e:
+            st.error(f"Error reading PDF: {e}")
+            text = ""
+    else:
+        text = uploadfile.read().decode("utf-8")    
+    return [
+        re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
+        for line in text.splitlines() if line.strip()
+    ]
+
+def simplifytext(text, client, patientcontext=None):
+    prompt = f"Patient context: {patientcontext}\nMedical Instructions: {text}" if patientcontext else text
+    message = (
+        "Simplify the following medical instructions into clear, patient-friendly language. "
+        "Retain the essential details but use plain language and structure the information for easy reading:\n\n" 
+        + prompt
+    )
+    try:
+        response = client.chat.completions.create(
+            model="deepseek/deepseek-r1:free",
+            messages=[{"role": "user", "content": message}],
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"[ChatGPT Error] {e}"
+
+def extractkeyinfo(simplifiedtext):
+    sentences = nltk.sent_tokenize(simplifiedtext)
+    keywords = ['follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', 'medication']
+    keyphrases = [sent for sent in sentences if any(keyword in sent.lower() for keyword in keywords)]
+    return keyphrases
+
+def evaluatereadability(simplifiedtext):
+    score = textstat.flesch_reading_ease(simplifiedtext)
+    return score
+
+st.title("Discharge Instruction")
+uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
+if uploadfile is not None:
+    data = loadandpreprocess(uploadfile)
+    if data:
+        originaltext = data[0]
+        st.subheader("Original Text")
+        st.write(originaltext)
+        client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key="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")
+        patientcontext = st.text_input("Enter patient context (optional):")
+        with st.spinner("Simplifying text..."):
+            simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
+        st.subheader("Simplified Text")
+        st.write(simplifiedtext)
+        keyinfo = extractkeyinfo(simplifiedtext)
+        st.subheader("Extracted Key Information")
+        st.write(keyinfo)
+        readability = evaluatereadability(simplifiedtext)
+        st.subheader("Readability Score (Flesch Reading Ease)")
+        st.write(readability)
+    else:
+        st.warning("No valid data found in the file.")
+else:
+        st.info("Please upload a discharge instructions file.")
