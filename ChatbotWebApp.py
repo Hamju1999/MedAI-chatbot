@@ -65,7 +65,7 @@ if uploadfile is not None:
         st.subheader("Original Text")
         st.write(originaltext)
         with st.spinner("Initializing OpenRouter client..."):
-             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
+            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
         patientcontext = st.text_input("Enter patient context (optional):")
         with st.spinner("Simplifying text..."):
             simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
