@@ -39,7 +39,7 @@ def simplifytext(text, client, patientcontext=None):
     )
     try:
         response = client.chat.completions.create(
-            model="deepseek/auto",
+            model="deepseek/deepseek-r1:free",
             messages=[{"role": "user", "content": message}],
         )
         return response.choices[0].message.content
@@ -57,28 +57,27 @@ def evaluatereadability(simplifiedtext):
     return score
 
 st.title("Discharge Instruction")
-if os.environ.get("OPENROUTER_API_KEY"):
-    uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
-    if uploadfile is not None:
-        data = loadandpreprocess(uploadfile)
-        if data:
-            originaltext = " ".join(data)
-            st.subheader("Original Text")
-            st.write(originaltext)
-            with st.spinner("Initializing OpenRouter client..."):
-                    client = OpenAI(base_url="https://openrouter.ai/api/v1",api_key=st.secrets["OPENROUTER_API_KEY"])
-            patientcontext = st.text_input("Enter patient context (optional):")
-            with st.spinner("Simplifying text..."):
-                simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
-            st.subheader("Simplified Text")
-            st.write(simplifiedtext)
-            keyinfo = extractkeyinfo(simplifiedtext)
-            st.subheader("Extracted Key Information")
-            st.write(keyinfo)
-            readability = evaluatereadability(simplifiedtext)
-            st.subheader("Readability Score (Flesch Reading Ease)")
-            st.write(readability)
-        else:
-            st.warning("No valid data found in the file.")
+uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
+if uploadfile is not None:
+    data = loadandpreprocess(uploadfile)
+    if data:
+        originaltext = " ".join(data)
+        st.subheader("Original Text")
+        st.write(originaltext)
+        with st.spinner("Initializing OpenRouter client..."):
+                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
+        patientcontext = st.text_input("Enter patient context (optional):")
+        with st.spinner("Simplifying text..."):
+            simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
+        st.subheader("Simplified Text")
+        st.write(simplifiedtext)
+        keyinfo = extractkeyinfo(simplifiedtext)
+        st.subheader("Extracted Key Information")
+        st.write(keyinfo)
+        readability = evaluatereadability(simplifiedtext)
+        st.subheader("Readability Score (Flesch Reading Ease)")
+        st.write(readability)
     else:
-            st.info("Please upload a discharge instructions file.")
+        st.warning("No valid data found in the file.")
+else:
+    st.info("Please upload a discharge instructions file.")
