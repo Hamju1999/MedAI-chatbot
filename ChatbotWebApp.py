@@ -25,7 +25,7 @@ for package in ['punkt', 'punkt_tab']:
         print(f"Error finding {package} data: {e}")
         nltk.download(package)
 
-def load_and_preprocess(uploadfile):
+def loadandpreprocess(uploadfile):
     _, ext = os.path.splitext(uploadfile.name)
     if ext.lower() == ".pdf":
         try:
