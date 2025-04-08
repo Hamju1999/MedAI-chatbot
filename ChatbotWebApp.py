@@ -44,7 +44,7 @@ def simplifytext(text, client, patientcontext=None):
         return llmcache[prompt]
     try:
         response = client.chat.completions.create(
-            model="google/gemini-2.0-flash-thinking-exp:free",
+            model="nvidia/llama-3.1-nemotron-ultra-253b-v1:free",
             messages=[{"role": "user", "content": prompt}],
             temperature=0,  
             top_p=1        
