@@ -51,7 +51,7 @@ def simplifytext(text, client, patientcontext=None):
         return llmcache[prompt]
     try:
         response = client.chat.completions.create(
-            model="openai/o1-mini",
+            model="meta-llama/llama-4-maverick",
             messages=[{"role": "user", "content": prompt}],
             temperature=0,  
             top_p=1        
