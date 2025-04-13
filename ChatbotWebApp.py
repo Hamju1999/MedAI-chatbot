@@ -19,7 +19,7 @@ for package in ['punkt', 'punkt_tab']:
 llmcache = {}
 
 def loadandpreprocess(uploadfile):
-    """Read and preprocess only PDFs."""
+    """Extract and preprocess text from PDF or TXT files."""
     _, ext = os.path.splitext(uploadfile.name)
     text = ""
     if ext.lower() == ".pdf":
@@ -28,9 +28,16 @@ def loadandpreprocess(uploadfile):
             text = "".join(page.extract_text() or "" for page in reader.pages)
         except Exception as e:
             st.error(f"Error reading PDF: {e}")
+            text = ""
+    elif ext.lower() == ".txt":
+        try:
+            text = uploadfile.read().decode("utf-8")
+        except Exception as e:
+            st.error(f"Error reading TXT file: {e}")
+            text = ""
     else:
-        st.warning("Only PDF files are supported for simplification.")
-    # Clean and filter text lines
+        st.error("Unsupported file type. Please upload a PDF or TXT file.")
+    
     return [
         re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
         for line in text.splitlines() if line.strip()
