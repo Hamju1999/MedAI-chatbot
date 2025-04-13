@@ -146,11 +146,10 @@ def evaluatereadability(simplifiedtext):
     score = textstat.flesch_reading_ease(simplifiedtext)
     return score
 
-# Streamlit interface setup
+# Streamlit interface setup: allow both PDF and TXT files
 st.title("Discharge Instruction Simplifier")
-uploadfile = st.file_uploader("Upload Discharge Instructions (PDF only)", type=["pdf"])
+uploadfile = st.file_uploader("Upload Discharge Instructions (PDF or TXT)", type=["pdf", "txt"])
 
-# Load training data from GitHub without outputting it to the user
 githuburl = "https://github.com/Hamju1999/MedAI-chatbot/blob/master/train.json"
 rawgithub = githuburl.replace("github.com", "raw.githubusercontent.com").replace("/blob", "")
 trainingdata = None
@@ -187,4 +186,4 @@ if uploadfile is not None:
     else:
         st.warning("No valid text data found in the file.")
 else:
-    st.info("Please upload a PDF file containing discharge instructions.")
+    st.info("Please upload a discharge instructions file.")
