@@ -5,6 +5,7 @@ import re
 import textstat
 import nltk
 import json
+import requests
 import streamlit as st
 from openai import OpenAI
 
