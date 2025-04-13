@@ -6,12 +6,12 @@ import textstat
 import streamlit as st
 from openai import OpenAI
 
-# Ensure nltk data packages are installed.
+# Ensure required NLTK packages are available
 for package in ['punkt', 'punkt_tab']:
     try:
         nltk.data.find(package)
     except Exception as e:
-        st.error(f"Error finding {package} data: {e}")
+        print(f"Error finding {package} data: {e}")
         nltk.download(package)
 
 llmcache = {}
