@@ -83,7 +83,7 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
         "The final simplified text should be focused on a list of tasks, follow-ups, and their importance."
     )
 
-   if prompt in llmcache:
+    if prompt in llmcache:
         return llmcache[prompt]
     try:
         response = client.chat.completions.create(
