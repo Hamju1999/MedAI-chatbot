@@ -38,14 +38,15 @@ def loadandpreprocess(uploadfile):
 
 def simplifytext(text, client, patientcontext=None, trainingdata=None):
     """
-    Build a prompt that includes training examples from JSON to instruct the LLM without outputting the JSON itself.
-    Then, use the prompt to simplify the PDF content.
+    Build a prompt that includes limited training examples from JSON to instruct the LLM without
+    outputting the JSON itself. Also, truncate the PDF text if it's too long.
     """
-    # Create training context without directly outputting the JSON data
+    # Limit the number of training examples to avoid an overly long prompt
+    max_samples = 5
     training_context = ""
     if trainingdata and "discharge_samples" in trainingdata:
         training_context += "Learn from these examples of how to simplify complex medical instructions:\n\n"
-        for sample in trainingdata["discharge_samples"]:
+        for sample in trainingdata["discharge_samples"][:max_samples]:
             if "structure" in sample:
                 for section in sample["structure"]:
                     if "heading_analysis" in section:
@@ -69,7 +70,12 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
                                         training_context += (f"Example: Convert term '{wordanalysis.get('word')}' "
                                                              f"to '{wordanalysis.get('simplified_explanation')}'.\n")
         training_context += "\n"
-
+    
+    # Optionally, truncate the PDF text if it's overly long
+    max_text_length = 5000  # Adjust this value based on your needs
+    if len(text) > max_text_length:
+        text = text[:max_text_length] + "\n[Truncated]"
+    
     # Build the full prompt using the training context, optional patient context, and the PDF text
     prompt = training_context
     if patientcontext:
@@ -77,22 +83,22 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
     prompt += (
         f"Medical Instructions:\n{text}\n\n"
         "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
-        "Convert the above discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to "
-        "the training examples provided. Retain all essential details while reformulating the text so that it achieves a "
+        "Convert the above discharge instructions into plain, patient-friendly language, ensuring accuracy with respect "
+        "to the training examples provided. Retain all essential details while reformulating the text so that it achieves a "
         "Flesch Reading Ease score between 80 and 90 (do not output the Flesch Reading Ease score).\n\n"
         "The final simplified text should be focused on a list of tasks, follow-ups, and their importance."
     )
-
+    
     if prompt in llmcache:
         return llmcache[prompt]
+    
     try:
         response = client.chat.completions.create(
-            model="deepseek/deepseek-r1",
+            model="google/gemini-2.0-flash-thinking-exp:free",
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
             top_p=1
         )
-        # Check if the response and its choices are valid before indexing
         if response is None or not hasattr(response, "choices") or not response.choices:
             return "[OpenRouter Error] No valid response choices received."
         result = response.choices[0].message.content
