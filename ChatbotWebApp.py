@@ -75,7 +75,6 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
     return promptexamples
 
     prompt = (
-        f"{promptexamples}"
         f"Patient Context:\n{patientcontext}\n\n"
         f"Medical Instructions:\n{text}\n\n"
         "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
