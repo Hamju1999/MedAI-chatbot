@@ -38,8 +38,8 @@ def loadandpreprocess(uploadfile):
 
 def simplifytext(text, client, patientcontext=None, trainingdata=None):
     """
-    Build a prompt that includes training examples from JSON to instruct the LLM 
-    without outputting the JSON itself. The prompt is then used to simplify the PDF content.
+    Build a prompt that includes training examples from JSON to instruct the LLM without outputting the JSON itself.
+    Then, use the prompt to simplify the PDF content.
     """
     # Create training context without directly outputting the JSON data
     training_context = ""
@@ -83,7 +83,6 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
         "The final simplified text should be focused on a list of tasks, follow-ups, and their importance."
     )
 
-    # Cache call to avoid redundant requests
     if prompt in llmcache:
         return llmcache[prompt]
     try:
@@ -93,11 +92,15 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
             temperature=0,
             top_p=1
         )
+        # Check if the response and its choices are valid before indexing
+        if response is None or not hasattr(response, "choices") or not response.choices:
+            return "[OpenRouter Error] No valid response choices received."
         result = response.choices[0].message.content
         llmcache[prompt] = result
         return result
     except Exception as e:
         return f"[OpenRouter Error] {e}"
+
 
 def extractkeyinfo(simplifiedtext):
     sentences = nltk.sent_tokenize(simplifiedtext)
