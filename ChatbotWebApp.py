@@ -35,19 +35,43 @@ def loadandpreprocess(uploadfile):
 def simplifytext(text, client, patientcontext=None, trainingdata=None):
     promptexamples = ""
     if trainingdata and "discharge_samples" in trainingdata:
-        promptexamples = "Here are some examples of complex medical terms and their simplified explanations to learn from:\n\n"
+        promptexamples += ("Here are some examples of complex medical terms, headings, and paragraphs with "
+                           "their simplified explanations to learn from:\n\n")
         for sample in trainingdata["discharge_samples"]:
+            sample_url = sample.get("sample_url")
+            if sample_url:
+                promptexamples += f"Sample URL: {sample_url}\n\n"
             if "structure" in sample:
                 for section in sample["structure"]:
+                    # Check the heading_analysis for the section heading
+                    if "heading_analysis" in section:
+                        ha = section["heading_analysis"]
+                        # Using original_heading from the analysis if available (could also use section["heading"])
+                        if (ha.get("complexity_level", "").lower() == "complex" and 
+                            ha.get("original_heading") and ha.get("simplified_explanation")):
+                            promptexamples += (f"Complex Heading: {ha.get('original_heading')}\n"
+                                               f"Simplified: {ha.get('simplified_explanation')}\n\n")
+                    # Process each paragraph within the section
                     if "paragraphs" in section:
                         for paragraph in section["paragraphs"]:
+                            # Check paragraph_analysis first
+                            if "paragraph_analysis" in paragraph:
+                                pa = paragraph["paragraph_analysis"]
+                                if (pa.get("complexity_level", "").lower() == "complex" and 
+                                    pa.get("original_paragraph") and pa.get("simplified_explanation")):
+                                    promptexamples += (f"Complex Paragraph: {pa.get('original_paragraph')}\n"
+                                                       f"Simplified: {pa.get('simplified_explanation')}\n\n")
+                            # Then process words_analysis if present
                             if "words_analysis" in paragraph:
                                 for wordanalysis in paragraph["words_analysis"]:
                                     word = wordanalysis.get("word")
                                     simplifiedexplanation = wordanalysis.get("simplified_explanation")
                                     complexitylevel = wordanalysis.get("complexity_level")
-                                    if complexitylevel and complexitylevel.lower() == "complex" and word and simplifiedexplanation:
-                                        promptexamples += f"Complex Term: {word}\nSimplified: {simplifiedexplanation}\n\n"
+                                    if (complexitylevel and complexitylevel.lower() == "complex" and 
+                                        word and simplifiedexplanation):
+                                        promptexamples += (f"Complex Term: {word}\n"
+                                                           f"Simplified: {simplifiedexplanation}\n\n")
+    return promptexamples
 
     prompt = (
         f"{promptexamples}"
@@ -110,7 +134,7 @@ if uploadfile is not None:
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
         patientcontext = st.text_input("Enter patient context (optional):")
         with st.spinner("Simplifying text..."):
-            simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext, training_data=training_data)
+            simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext, trainingdata=trainingdata)
         st.subheader("Simplified Text")
         st.write(simplifiedtext)
         readability = evaluatereadability(simplifiedtext)
