@@ -32,25 +32,25 @@ def loadandpreprocess(uploadfile):
         for line in text.splitlines() if line.strip()
     ]
 
-def simplifytext(text, client, patientcontext=None, training_data=None):
-    prompt_examples = ""
-    if training_data and "discharge_samples" in training_data:
-        prompt_examples = "Here are some examples of complex medical terms and their simplified explanations to learn from:\n\n"
-        for sample in training_data["discharge_samples"]:
+def simplifytext(text, client, patientcontext=None, trainingdata=None):
+    promptexamples = ""
+    if trainingdata and "discharge_samples" in trainingdata:
+        promptexamples = "Here are some examples of complex medical terms and their simplified explanations to learn from:\n\n"
+        for sample in trainingdata["discharge_samples"]:
             if "structure" in sample:
                 for section in sample["structure"]:
                     if "paragraphs" in section:
                         for paragraph in section["paragraphs"]:
                             if "words_analysis" in paragraph:
-                                for word_analysis in paragraph["words_analysis"]:
-                                    word = word_analysis.get("word")
-                                    simplified_explanation = word_analysis.get("simplified_explanation")
-                                    complexity_level = word_analysis.get("complexity_level")
-                                    if complexity_level and complexity_level.lower() == "complex" and word and simplified_explanation:
-                                        prompt_examples += f"Complex Term: {word}\nSimplified: {simplified_explanation}\n\n"
+                                for wordanalysis in paragraph["words_analysis"]:
+                                    word = wordanalysis.get("word")
+                                    simplifiedexplanation = wordanalysis.get("simplified_explanation")
+                                    complexitylevel = wordanalysis.get("complexity_level")
+                                    if complexitylevel and complexitylevel.lower() == "complex" and word and simplifiedexplanation:
+                                        promptexamples += f"Complex Term: {word}\nSimplified: {simplifiedexplanation}\n\n"
 
     prompt = (
-        f"{prompt_examples}"
+        f"{promptexamples}"
         f"Patient Context:\n{patientcontext}\n\n"
         f"Medical Instructions:\n{text}\n\n"
         "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
@@ -85,17 +85,22 @@ def evaluatereadability(simplifiedtext):
 
 st.title("Discharge Instruction Simplifier")
 uploadfile = st.file_uploader("Upload Discharge Instructions (txt or pdf)", type=["txt", "pdf"])
-training_file = st.file_uploader("Upload Training Data (JSON - optional)", type=["json"])
+githuburl = "https://github.com/Hamju1999/MedAI-chatbot/blob/master/train.json"
+rawgithub = githuburl.replace("github.com", "raw.githubusercontent.com").replace("/blob", "")
+trainingdata = None
 
-training_data = None
-if training_file is not None:
+with st.spinner(f"Loading training data from: {rawgithub}"):
     try:
-        training_data = json.load(training_file)
-        st.success("Training data loaded successfully!")
+        response = requests.get(rawgithub)
+        response.raise_for_status()  
+        trainingdata = response.json()
+        st.success("Training data loaded successfully from GitHub!")
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error loading training data from GitHub: {e}")
     except json.JSONDecodeError:
-        st.error("Error: Invalid JSON file.")
+        st.error("Error: Invalid JSON file in GitHub.")
     except Exception as e:
-        st.error(f"An error occurred while loading the JSON file: {e}")
+        st.error(f"An unexpected error occurred while loading training data: {e}")
 
 if uploadfile is not None:
     data = loadandpreprocess(uploadfile)
