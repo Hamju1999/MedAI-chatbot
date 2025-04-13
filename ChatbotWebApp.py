@@ -38,8 +38,8 @@ def loadandpreprocess(uploadfile):
 
 def simplifytext(text, client, patientcontext=None, trainingdata=None):
     """
-    Build a prompt that includes a very limited training context from JSON to instruct the LLM without
-    outputting the JSON itself, and truncate the PDF text to a much smaller excerpt.
+    Build a prompt that includes limited training examples from JSON (without outputting the JSON itself)
+    and uses an aggressively truncated excerpt from the PDF text. Then, call the LLM API to obtain a simplified version.
     """
     # Build a very limited training context
     training_context = ""
@@ -72,7 +72,7 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
                                         training_context += (
                                             f"Example: Convert '{wordanalysis.get('word')}' to '{wordanalysis.get('simplified_explanation')}'.\n"
                                         )
-        # Limit the training context length further, if needed.
+        # Optionally, further truncate training context if needed
         max_training_length = 1000  # characters
         if len(training_context) > max_training_length:
             training_context = training_context[:max_training_length] + "\n[Truncated training context]\n"
@@ -93,7 +93,7 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
         "Retain all essential details and focus on a list of tasks, follow-ups, and their importance."
     )
     
-    # Log the prompt length for debugging purposes
+    # Log the prompt length for debugging
     st.write("Prompt length (characters):", len(prompt))
 
     if prompt in llmcache:
@@ -106,15 +106,28 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
             temperature=0,
             top_p=1
         )
-        # Check if the response has valid choices
-        if response is None or not hasattr(response, "choices") or not response.choices:
-            return f"[OpenRouter Error] No valid response choices received. (Prompt length: {len(prompt)} characters)"
-        result = response.choices[0].message.content
+        
+        # Assume the response is a dictionary; check if there's an error field
+        if isinstance(response, dict):
+            error = response.get("error")
+            if error:
+                return f"[OpenRouter Error] {error.get('message', 'Unknown error')}"
+            choices = response.get("choices")
+            if not choices:
+                return f"[OpenRouter Error] No valid response choices received. (Prompt length: {len(prompt)} characters)"
+            result = choices[0]["message"]["content"]
+        else:
+            # Fallback in case the response is an object with attributes
+            if hasattr(response, 'error') and response.error:
+                return f"[OpenRouter Error] {response.error.get('message', 'Unknown error')}"
+            if not hasattr(response, "choices") or not response.choices:
+                return f"[OpenRouter Error] No valid response choices received. (Prompt length: {len(prompt)} characters)"
+            result = response.choices[0].message.content
+        
         llmcache[prompt] = result
         return result
     except Exception as e:
         return f"[OpenRouter Error] {e}"
-
 
 def extractkeyinfo(simplifiedtext):
     sentences = nltk.sent_tokenize(simplifiedtext)
