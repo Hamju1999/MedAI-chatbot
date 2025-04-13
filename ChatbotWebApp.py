@@ -38,14 +38,14 @@ def loadandpreprocess(uploadfile):
 
 def simplifytext(text, client, patientcontext=None, trainingdata=None):
     """
-    Build a prompt that includes limited training examples from JSON to instruct the LLM without
-    outputting the JSON itself. Also, truncate the PDF text if it's too long.
+    Build a prompt that includes a very limited training context from JSON to instruct the LLM without
+    outputting the JSON itself, and truncate the PDF text to a much smaller excerpt.
     """
-    # Limit the number of training examples to avoid an overly long prompt
-    max_samples = 5
+    # Build a very limited training context
     training_context = ""
+    max_samples = 3  # Use only up to 3 training examples
     if trainingdata and "discharge_samples" in trainingdata:
-        training_context += "Learn from these examples of how to simplify complex medical instructions:\n\n"
+        training_context += "Learn from these examples of simplifying complex medical instructions:\n\n"
         for sample in trainingdata["discharge_samples"][:max_samples]:
             if "structure" in sample:
                 for section in sample["structure"]:
@@ -53,42 +53,49 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
                         ha = section["heading_analysis"]
                         if (ha.get("complexity_level", "").lower() == "complex" and 
                             ha.get("original_heading") and ha.get("simplified_explanation")):
-                            training_context += (f"Example: Convert complex heading '{ha.get('original_heading')}' "
-                                                 f"to '{ha.get('simplified_explanation')}'.\n")
+                            training_context += (
+                                f"Example: Convert '{ha.get('original_heading')}' to '{ha.get('simplified_explanation')}'.\n"
+                            )
                     if "paragraphs" in section:
                         for paragraph in section["paragraphs"]:
                             if "paragraph_analysis" in paragraph:
                                 pa = paragraph["paragraph_analysis"]
                                 if (pa.get("complexity_level", "").lower() == "complex" and 
                                     pa.get("original_paragraph") and pa.get("simplified_explanation")):
-                                    training_context += (f"Example: Convert complex paragraph '{pa.get('original_paragraph')}' "
-                                                         f"to '{pa.get('simplified_explanation')}'.\n")
+                                    training_context += (
+                                        f"Example: Convert '{pa.get('original_paragraph')}' to '{pa.get('simplified_explanation')}'.\n"
+                                    )
                             if "words_analysis" in paragraph:
                                 for wordanalysis in paragraph["words_analysis"]:
                                     if (wordanalysis.get("complexity_level", "").lower() == "complex" and 
                                         wordanalysis.get("word") and wordanalysis.get("simplified_explanation")):
-                                        training_context += (f"Example: Convert term '{wordanalysis.get('word')}' "
-                                                             f"to '{wordanalysis.get('simplified_explanation')}'.\n")
-        training_context += "\n"
-    
-    # Optionally, truncate the PDF text if it's overly long
-    max_text_length = 5000  # Adjust this value based on your needs
+                                        training_context += (
+                                            f"Example: Convert '{wordanalysis.get('word')}' to '{wordanalysis.get('simplified_explanation')}'.\n"
+                                        )
+        # Limit the training context length further, if needed.
+        max_training_length = 1000  # characters
+        if len(training_context) > max_training_length:
+            training_context = training_context[:max_training_length] + "\n[Truncated training context]\n"
+
+    # Aggressively truncate the PDF text
+    max_text_length = 1000  # characters
     if len(text) > max_text_length:
         text = text[:max_text_length] + "\n[Truncated]"
-    
-    # Build the full prompt using the training context, optional patient context, and the PDF text
+
+    # Construct the final prompt
     prompt = training_context
     if patientcontext:
         prompt += f"Patient Context:\n{patientcontext}\n\n"
     prompt += (
         f"Medical Instructions:\n{text}\n\n"
         "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
-        "Convert the above discharge instructions into plain, patient-friendly language, ensuring accuracy with respect "
-        "to the training examples provided. Retain all essential details while reformulating the text so that it achieves a "
-        "Flesch Reading Ease score between 80 and 90 (do not output the Flesch Reading Ease score).\n\n"
-        "The final simplified text should be focused on a list of tasks, follow-ups, and their importance."
+        "Convert the above discharge instructions into plain, patient-friendly language. "
+        "Retain all essential details and focus on a list of tasks, follow-ups, and their importance."
     )
     
+    # Log the prompt length for debugging purposes
+    st.write("Prompt length (characters):", len(prompt))
+
     if prompt in llmcache:
         return llmcache[prompt]
     
@@ -99,13 +106,15 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
             temperature=0,
             top_p=1
         )
+        # Check if the response has valid choices
         if response is None or not hasattr(response, "choices") or not response.choices:
-            return "[OpenRouter Error] No valid response choices received."
+            return f"[OpenRouter Error] No valid response choices received. (Prompt length: {len(prompt)} characters)"
         result = response.choices[0].message.content
         llmcache[prompt] = result
         return result
     except Exception as e:
         return f"[OpenRouter Error] {e}"
+
 
 def extractkeyinfo(simplifiedtext):
     sentences = nltk.sent_tokenize(simplifiedtext)
