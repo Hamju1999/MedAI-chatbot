@@ -87,7 +87,7 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
         return llmcache[prompt]
     try:
         response = client.chat.completions.create(
-            model="google/gemini-2.0-flash-thinking-exp:free",
+            model="deepseek/deepseek-r1",
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
             top_p=1
