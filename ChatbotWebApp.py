@@ -94,9 +94,10 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
         )
         # Debug: print the raw response
         st.write("Raw API response:", response)
-        # Check if the response and its choices are valid before indexing
+        
         if response is None or not hasattr(response, "choices") or not response.choices:
             return "[OpenRouter Error] No valid response choices received."
+        
         result = response.choices[0].message.content
         llmcache[prompt] = result
         return result
