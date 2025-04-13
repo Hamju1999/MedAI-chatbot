@@ -86,20 +86,23 @@ def simplifytext(text, client, patientcontext=None, trainingdata=None):
     if prompt in llmcache:
         return llmcache[prompt]
     try:
-        response = client.chat.completions.create(
-            model="google/gemini-2.0-flash-thinking-exp:free",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            top_p=1
-        )
-        # Check if the response and its choices are valid before indexing
-        if response is None or not hasattr(response, "choices") or not response.choices:
-            return "[OpenRouter Error] No valid response choices received."
-        result = response.choices[0].message.content
-        llmcache[prompt] = result
-        return result
-    except Exception as e:
-        return f"[OpenRouter Error] {e}"
+    response = client.chat.completions.create(
+        model="google/gemini-2.0-flash-thinking-exp:free",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        top_p=1
+    )
+    # Debug: print the raw response
+    st.write("Raw API response:", response)
+    
+    if response is None or not hasattr(response, "choices") or not response.choices:
+        return "[OpenRouter Error] No valid response choices received."
+    
+    result = response.choices[0].message.content
+    llmcache[prompt] = result
+    return result
+except Exception as e:
+    return f"[OpenRouter Error] {e}"
 
 
 def extractkeyinfo(simplifiedtext):
