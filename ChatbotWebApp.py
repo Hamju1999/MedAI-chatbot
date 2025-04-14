@@ -45,10 +45,11 @@ def simplifytext(text, client, patientcontext=None):
     prompt = (
         f"Patient Context:\n{patientcontext}\n\n"
         f"Medical Instructions:\n{text}\n\n"
-        "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
-        "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
-        "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
-        "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
+        "Critically review the provided MTSamples discharge instructions and identify any sections or phrases that may be ambiguous, confusing, or incomplete from a patient's perspective. For each unclear segment, propose at least one revised version that remains faithful to the original medical intent yet is more easily understood by someone with limited medical background.\n\n"
+        "Revise the discharge instructions to strike a balance between medical accuracy and patient-friendly language. Confirm that the final text achieves a Flesch Reading Ease score between 80 and 90, without explicitly stating the actual score. Clearly highlight any terms or phrases that might still pose comprehension challenges for the patient, and provide succinct explanations or context where necessary.\n\n"
+        "Transform the revised discharge instructions into a structured document that emphasizes key tasks, potential risks, and necessary follow-up steps. Group related instructions under descriptive subheadings (e.g., 'Medication Management,' 'Activity and Rest,' 'When to Seek Help') to facilitate quick scanning and ensure no critical detail is lost or diminished.\n\n"
+        "Reformat the core instructions into a concise, step-by-step list that the patient can easily track. Within each step, include clear explanations of why the action is necessary (e.g., controlling symptoms, preventing complications) and any important timelines or frequency details (e.g., how often to take a medication, when to make a follow-up appointment). Emphasize the importance of adherence to each step without overloading the patient with superfluous details.\n\n"
+        "Now that you have a simplified version of the discharge instructions, systematically analyze each sentence. Extract only those sentences containing at least one of the following actionable keywords: 'follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', or 'medication'. Present these extracted sentences in an enumerated list, making certain no other content is included in your final output.\n\n"
     )
     if prompt in llmcache:
         return llmcache[prompt]
@@ -64,12 +65,6 @@ def simplifytext(text, client, patientcontext=None):
         return result
     except Exception as e:
         return f"[OpenRouter Error] {e}"
-
-def extractkeyinfo(simplifiedtext):
-    sentences = nltk.sent_tokenize(simplifiedtext)
-    keywords = ['follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', 'medication']
-    keyphrases = [sent for sent in sentences if any(keyword in sent.lower() for keyword in keywords)]
-    return keyphrases
 
 def evaluatereadability(simplifiedtext):
     score = textstat.flesch_reading_ease(simplifiedtext)
@@ -115,16 +110,18 @@ def upsert_chunks(chunks, index):
     return index
 
 def retrieve_relevant_chunks(query, index, top_k=5):
-    """
-    Retrieves the top_k most relevant chunks from the Pinecone index given the query.
-    """
     query_emb = get_embedding(query)
     if query_emb is None:
+        st.error("No valid query embedding generated.")
         return []
-    result = index.query(queries=[query_emb], top_k=top_k, include_metadata=True)
-    matches = result["results"][0]["matches"]
-    retrieved_chunks = [match["metadata"]["text"] for match in matches]
-    return retrieved_chunks
+    try:
+        result = index.query(queries=[query_emb], top_k=top_k, include_metadata=True)
+        matches = result["results"][0]["matches"]
+        retrieved_chunks = [match["metadata"]["text"] for match in matches]
+        return retrieved_chunks
+    except Exception as e:
+        st.error(f"Error querying Pinecone: {e}")
+        return []
 
 ##########################
 # Streamlit App Interface
