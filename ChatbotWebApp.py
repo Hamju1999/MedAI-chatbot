@@ -41,15 +41,19 @@ def loadandpreprocess(uploadfile):
     ]
 
 def simplifytext(text, client, patientcontext=None):
-    # DO NOT change the prompt below
     prompt = (
         f"Patient Context:\n{patientcontext}\n\n"
         f"Medical Instructions:\n{text}\n\n"
-        "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
-        "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
-        "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
-        "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
-        "Below is a simplified version of discharge instructions. Please examine the text sentence by sentence and extract only those sentences that contain at least one of the following actionable keywords: 'follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', or 'medication'. Return your answer as a list of the relevant sentences."
+        "Critically review the provided MTSamples discharge instructions and identify any sections or phrases that may be ambiguous, confusing, or incomplete from a patient's perspective. For each unclear segment, propose at least one revised version that remains faithful to the original medical intent yet is more easily understood by someone with limited medical background.\n\n"
+        "Critically review the provided MTSamples discharge instructions and identify any sections or phrases that may be ambiguous, confusing, or incomplete from a patient's perspective. For each unclear segment, propose at least one revised version that remains faithful to the original medical intent yet is more easily understood by someone with limited medical background."
+        "Revise the discharge instructions to strike a balance between medical accuracy and patient-friendly language. Confirm that the final text achieves a Flesch Reading Ease score between 80 and 90, without explicitly stating the actual score. Clearly highlight any terms or phrases that might still pose comprehension challenges for the patient, and provide succinct explanations or context where necessary."
+        "Transform the revised discharge instructions into a structured document that emphasizes key tasks, potential risks, and necessary follow-up steps. Group related instructions under descriptive subheadings (e.g., 'Medication Management,' 'Activity and Rest,' 'When to Seek Help') to facilitate quick scanning and ensure no critical detail is lost or diminished."
+        "Reformat the core instructions into a concise, step-by-step list that the patient can easily track. Within each step, include clear explanations of why the action is necessary (e.g., controlling symptoms, preventing complications) and any important timelines or frequency details (e.g., how often to take a medication, when to make a follow-up appointment). Emphasize the importance of adherence to each step without overloading the patient with superfluous details."
+       # "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
+       # "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
+       # "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
+       # "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
+       # "Below is a simplified version of discharge instructions. Please examine the text sentence by sentence and extract only those sentences that contain at least one of the following actionable keywords: 'follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', or 'medication'. Return your answer as a list of the relevant sentences."
     )
     if prompt in llmcache:
         return llmcache[prompt]
