@@ -4,6 +4,7 @@ import uuid
 import nltk
 import PyPDF2
 import textstat
+import math
 import streamlit as st
 from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
@@ -98,12 +99,25 @@ def get_embedding(text):
             input=text,
             model="text-embedding-ada-002"
         )
-        # Convert each element in the embedding to a native Python float.
-        return [float(x) for x in response.data[0].embedding]
+        # Convert embedding values to native Python floats.
+        embedding = [float(x) for x in response.data[0].embedding]
+        
+        # Check if the embedding has the correct dimension (1536 for text-embedding-ada-002).
+        expected_dim = 1536
+        if len(embedding) != expected_dim:
+            st.error(f"Embedding dimension mismatch: expected {expected_dim} but got {len(embedding)}")
+            return None
+
+        # Verify that every value is a finite number.
+        for i, val in enumerate(embedding):
+            if math.isnan(val) or math.isinf(val):
+                st.error(f"Invalid value found in embedding vector at index {i}: {val}")
+                return None
+        
+        return embedding
     except Exception as e:
         st.error(f"Error generating embedding: {e}")
         return None
-
 
 def upsert_chunks(chunks, index):
     """
