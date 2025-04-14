@@ -100,10 +100,10 @@ def get_embedding(text):
             input=text,
             model="text-embedding-ada-002"
         )
-        # Convert the raw embedding to a NumPy float32 array.
+        # Convert raw embedding to a NumPy array with 32-bit precision.
         embedding = np.array(response.data[0].embedding, dtype=np.float32)
         
-        # Ensure the embedding has the correct dimension.
+        # Check that the embedding has the expected dimension.
         expected_dim = 1536
         if embedding.shape[0] != expected_dim:
             st.error(f"Embedding dimension mismatch: expected {expected_dim} but got {embedding.shape[0]}")
@@ -113,14 +113,17 @@ def get_embedding(text):
         if not np.all(np.isfinite(embedding)):
             st.error("Embedding contains non-finite values.")
             return None
-
-        # Normalize the embedding vector (L2 normalization) for cosine similarity.
+        
+        # Normalize the embedding vector (L2 normalization).
         norm = np.linalg.norm(embedding)
         if norm > 0:
             embedding = embedding / norm
         else:
             st.error("Embedding vector has zero norm.")
             return None
+        
+        # Round the vector values to reduce precision issues.
+        embedding = np.round(embedding, decimals=6)
         
         return embedding.tolist()
     except Exception as e:
