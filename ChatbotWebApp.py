@@ -72,53 +72,52 @@ def evaluatereadability(simplifiedtext):
 ##########################
 
 st.title("Discharge Instruction Simplifier")
+
+# 1. Let the user choose their view BEFORE uploading a file.
+view_type = st.radio("Choose your view:", ["Patient", "Clinician"], index=0)
+
+# 2. File uploader appears next.
 uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
 
+# 3. If file has been uploaded, proceed to text processing.
 if uploadfile is not None:
     data = loadandpreprocess(uploadfile)
     if data:
         originaltext = " ".join(data)
-        
+
         with st.spinner("Initializing OpenRouter client..."):
             # The OpenRouter client is used for completions.
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
-        
+
         # Optional patient context input.
         patientcontext = st.text_input("Enter patient context (optional):")
-        
+
         with st.spinner("Simplifying the text..."):
             simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
-                
-        # Add a switch to choose the view type
-        view_type = st.radio("Choose your view:", ["Patient", "Clinician"])
-        
+
+        # 4. Display results depending on view type.
         if view_type == "Patient":
-            # Show only the simplified text
             st.subheader("Simplified Text")
             st.write(simplifiedtext)
-            
-            # Readability score is still shown to user
+
             readability = evaluatereadability(simplifiedtext)
             st.subheader("Readability Score (Flesch Reading Ease)")
             st.write(readability)
-            
-        else:  # Clinician view
-            # Show original text, context, and simplified text
+
+        else:  # Clinician
             st.subheader("Original Discharge Instructions")
             st.write(originaltext)
-            
+
             if patientcontext:
                 st.subheader("Patient Context Provided")
                 st.write(patientcontext)
-            
+
             st.subheader("Simplified Text (Patient-Friendly)")
             st.write(simplifiedtext)
-            
-            # Readability score
+
             readability = evaluatereadability(simplifiedtext)
             st.subheader("Readability Score (Flesch Reading Ease)")
             st.write(readability)
-            
     else:
         st.warning("No valid data found in the file.")
 else:
