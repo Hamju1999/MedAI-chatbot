@@ -95,7 +95,7 @@ def get_embedding(text):
             input=text,
             model="text-embedding-ada-002"
         )
-        return response["data"][0]["embedding"]
+        return response.data[0].embedding
     except Exception as e:
         st.error(f"Error generating embedding: {e}")
         return None
