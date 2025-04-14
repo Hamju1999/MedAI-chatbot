@@ -5,6 +5,7 @@ import nltk
 import PyPDF2
 import textstat
 import math
+import numpy as np
 import streamlit as st
 from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
@@ -93,14 +94,15 @@ def chunk_text(text, chunk_size=500):
 # Create a dedicated embeddings client using the official OpenAI endpoint.
 embeddings_client = OpenAI(base_url="https://api.openai.com/v1", api_key=st.secrets["OPENAI_API_KEY"])
 
+
 def get_embedding(text):
     try:
         response = embeddings_client.embeddings.create(
             input=text,
             model="text-embedding-ada-002"
         )
-        # Convert embedding values to native Python floats.
-        embedding = [float(x) for x in response.data[0].embedding]
+        # Convert the embedding to a numpy array with float32 precision.
+        embedding = np.array(response.data[0].embedding, dtype=np.float32).tolist()
         
         # Check if the embedding has the correct dimension (1536 for text-embedding-ada-002).
         expected_dim = 1536
@@ -108,7 +110,7 @@ def get_embedding(text):
             st.error(f"Embedding dimension mismatch: expected {expected_dim} but got {len(embedding)}")
             return None
 
-        # Verify that every value is a finite number.
+        # Verify that every value is finite.
         for i, val in enumerate(embedding):
             if math.isnan(val) or math.isinf(val):
                 st.error(f"Invalid value found in embedding vector at index {i}: {val}")
