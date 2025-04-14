@@ -204,11 +204,28 @@ if uploadfile is not None:
         
         # Allow user to optionally ask a specific query about the instructions
         query = st.text_input("Enter a query regarding the discharge instructions (optional):")
+        st.write("Query entered:", query)
         
         if query:
             with st.spinner("Retrieving relevant text chunks based on your query..."):
-                relevant_chunks = retrieve_relevant_chunks(query, index, top_k=5)
-            # Combine retrieved chunks into a single text block
+                # Debug: check the query embedding before running the Pinecone query.
+                query_emb = get_embedding(query)
+                if query_emb:
+                    st.write("Query embedding sample (first 10 values):", query_emb[:10])
+                else:
+                    st.error("Failed to generate a valid query embedding.")
+                
+                # Try retrieving relevant chunks if query embedding is valid.
+                if query_emb is not None:
+                    try:
+                        relevant_chunks = retrieve_relevant_chunks(query, index, top_k=5)
+                    except Exception as e:
+                        st.error(f"Error in retrieving chunks: {e}")
+                        relevant_chunks = []
+                else:
+                    relevant_chunks = []
+            
+            # Combine retrieved chunks into a single text block.
             combined_text = " ".join(relevant_chunks)
             
             with st.spinner("Simplifying text based on retrieved relevant chunks..."):
