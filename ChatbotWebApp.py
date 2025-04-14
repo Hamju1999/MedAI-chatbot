@@ -101,16 +101,15 @@ def get_embedding(text):
             input=text,
             model="text-embedding-ada-002"
         )
-        # Convert the embedding to a numpy array with float32 precision.
-        embedding = np.array(response.data[0].embedding, dtype=np.float32).tolist()
+        # For each element, first cast to float32 then convert to a Python float.
+        embedding = [float(np.float32(x)) for x in response.data[0].embedding]
         
-        # Check if the embedding has the correct dimension (1536 for text-embedding-ada-002).
         expected_dim = 1536
         if len(embedding) != expected_dim:
             st.error(f"Embedding dimension mismatch: expected {expected_dim} but got {len(embedding)}")
             return None
 
-        # Verify that every value is finite.
+        # Validate every value is finite.
         for i, val in enumerate(embedding):
             if math.isnan(val) or math.isinf(val):
                 st.error(f"Invalid value found in embedding vector at index {i}: {val}")
