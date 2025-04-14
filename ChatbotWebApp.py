@@ -32,14 +32,13 @@ def loadandpreprocess(uploadfile):
             st.error(f"Error reading TXT file: {e}")
     else:
         st.error("Unsupported file format. Please upload a PDF or TXT file.")
-
-    # Convert text to a list of lines, stripping extra spaces/non-ASCII characters
-    # so we can show these lines separately if needed.
-    clean_lines = [
+    
+    # Clean up each line: remove non-ASCII, extra spaces, etc.
+    lines = [
         re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
         for line in text.splitlines() if line.strip()
     ]
-    return clean_lines
+    return lines
 
 def simplifytext(text, client, patientcontext=None):
     # DO NOT change the prompt below
@@ -82,17 +81,16 @@ view_type = st.radio("Choose your view:", ["Patient", "Clinician"], index=0)
 # File uploader
 uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
 
-# If user selects Clinician view, show the patient context input
+# Only show "patient context" input if in Clinician view
 if view_type == "Clinician":
     patientcontext = st.text_input("Enter patient context (optional):")
 else:
-    # For Patient view, we won't ask for patient context
     patientcontext = None
 
+# Process the uploaded file
 if uploadfile is not None:
     data = loadandpreprocess(uploadfile)
     if data:
-        # Combine lines into a single string for LLM prompt
         originaltext = " ".join(data)
 
         with st.spinner("Initializing OpenRouter client..."):
@@ -112,11 +110,18 @@ if uploadfile is not None:
 
         else:  # Clinician
             st.subheader("Original Discharge Instructions")
-            # Show original text with a structured layout
-            for paragraph in data:
-                st.write(f"- {paragraph}")
 
-            # If patientcontext is provided, show it
+            # Display each line with optional heuristic for headings
+            for paragraph in data:
+                # Example: If the line is all uppercase or ends with a colon, treat as "heading"
+                if paragraph.isupper() or paragraph.endswith(":"):
+                    # Bold it or treat as a subheader
+                    st.markdown(f"**{paragraph}**")
+                else:
+                    # Normal line
+                    st.write(paragraph)
+                st.write("")  # Blank line for spacing
+
             if patientcontext:
                 st.subheader("Patient Context Provided")
                 st.write(patientcontext)
