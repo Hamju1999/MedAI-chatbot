@@ -89,12 +89,36 @@ if uploadfile is not None:
         with st.spinner("Simplifying the text..."):
             simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
                 
-        st.subheader("Simplified Text")
-        st.write(simplifiedtext)
+        # Add a switch to choose the view type
+        view_type = st.radio("Choose your view:", ["Patient", "Clinician"])
         
-        readability = evaluatereadability(simplifiedtext)
-        st.subheader("Readability Score (Flesch Reading Ease)")
-        st.write(readability)
+        if view_type == "Patient":
+            # Show only the simplified text
+            st.subheader("Simplified Text")
+            st.write(simplifiedtext)
+            
+            # Readability score is still shown to user
+            readability = evaluatereadability(simplifiedtext)
+            st.subheader("Readability Score (Flesch Reading Ease)")
+            st.write(readability)
+            
+        else:  # Clinician view
+            # Show original text, context, and simplified text
+            st.subheader("Original Discharge Instructions")
+            st.write(originaltext)
+            
+            if patientcontext:
+                st.subheader("Patient Context Provided")
+                st.write(patientcontext)
+            
+            st.subheader("Simplified Text (Patient-Friendly)")
+            st.write(simplifiedtext)
+            
+            # Readability score
+            readability = evaluatereadability(simplifiedtext)
+            st.subheader("Readability Score (Flesch Reading Ease)")
+            st.write(readability)
+            
     else:
         st.warning("No valid data found in the file.")
 else:
