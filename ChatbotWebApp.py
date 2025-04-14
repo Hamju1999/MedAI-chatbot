@@ -44,9 +44,19 @@ def simplifytext(text, client, patientcontext=None):
     prompt = (
         f"Patient Context:\n{patientcontext}\n\n"
         f"Medical Instructions:\n{text}\n\n"
-        "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
-        "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
-        "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
+        "Instructions:\n"
+        "1. Read and interpret the medical instructions above carefully.\n"
+        "2. Rewrite the discharge instructions in plain, patient-friendly language. Use simple and clear language suitable for someone with limited medical knowledge.\n"
+        "3. Organize the output into a logically structured list, with each item representing a distinct task, follow-up, or instruction.\n"
+        "4. Ensure that all essential medical details are maintained and accurate, particularly relating to medication, follow-up appointments, and critical actions.\n"
+        "5. Aim for a final Flesch Reading Ease score between 80 and 90. Do not include any readability score or technical details in the output.\n"
+        "6. Verify that the reformulated text adheres to medical accuracy and clarity: check that instructions do not conflict and that any scheduled appointments, medication dosages, or conditions are clearly described.\n\n"
+        "Output:\n"
+        "- A bullet-point list that clearly separates tasks and key instructions.\n"
+        "- Medical statements must be accurate, clear, and easy to understand.
+       # "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
+       # "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
+       # "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
        # "Below is a simplified version of discharge instructions. Please examine the text sentence by sentence and extract only those sentences that contain at least one of the following actionable keywords: 'follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', or 'medication'. Return your answer as a list of the relevant sentences."
     )
     if prompt in llmcache:
