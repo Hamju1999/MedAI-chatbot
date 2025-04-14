@@ -98,10 +98,12 @@ def get_embedding(text):
             input=text,
             model="text-embedding-ada-002"
         )
-        return response.data[0].embedding
+        # Convert each element in the embedding to a native Python float.
+        return [float(x) for x in response.data[0].embedding]
     except Exception as e:
         st.error(f"Error generating embedding: {e}")
         return None
+
 
 def upsert_chunks(chunks, index):
     """
