@@ -100,35 +100,36 @@ def get_embedding(text):
             input=text,
             model="text-embedding-ada-002"
         )
-        # Convert raw embedding to a NumPy array with 32-bit precision.
-        embedding = np.array(response.data[0].embedding, dtype=np.float32)
+        # Extract the raw embedding as a NumPy array with float32 precision.
+        raw_embedding = response.data[0].embedding
+        embedding = np.array(raw_embedding, dtype=np.float32)
         
-        # Check that the embedding has the expected dimension.
+        # Ensure the embedding has the expected dimension (1536 for text-embedding-ada-002).
         expected_dim = 1536
         if embedding.shape[0] != expected_dim:
             st.error(f"Embedding dimension mismatch: expected {expected_dim} but got {embedding.shape[0]}")
             return None
-        
-        # Validate that every value is finite.
+
+        # Verify that every value is finite.
         if not np.all(np.isfinite(embedding)):
             st.error("Embedding contains non-finite values.")
             return None
-        
+
         # Normalize the embedding vector (L2 normalization).
         norm = np.linalg.norm(embedding)
-        if norm > 0:
-            embedding = embedding / norm
-        else:
+        if norm == 0:
             st.error("Embedding vector has zero norm.")
             return None
+        normalized = embedding / norm
+
+        # Round the normalized values to reduce precision issues.
+        normalized = np.round(normalized, decimals=6)
         
-        # Round the vector values to reduce precision issues.
-        embedding = np.round(embedding, decimals=6)
-        
-        return embedding.tolist()
+        return normalized.tolist()
     except Exception as e:
         st.error(f"Error generating embedding: {e}")
         return None
+
 
 def upsert_chunks(chunks, index):
     """
