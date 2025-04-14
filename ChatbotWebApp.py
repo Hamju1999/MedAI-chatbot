@@ -53,7 +53,7 @@ def simplifytext(text, client, patientcontext=None):
         "6. Verify that the reformulated text adheres to medical accuracy and clarity: check that instructions do not conflict and that any scheduled appointments, medication dosages, or conditions are clearly described.\n\n"
         "Output:\n"
         "- A bullet-point list that clearly separates tasks and key instructions.\n"
-        "- Medical statements must be accurate, clear, and easy to understand.
+        "- Medical statements must be accurate, clear, and easy to understand."
        # "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
        # "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
        # "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
