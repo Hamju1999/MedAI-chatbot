@@ -32,11 +32,14 @@ def loadandpreprocess(uploadfile):
             st.error(f"Error reading TXT file: {e}")
     else:
         st.error("Unsupported file format. Please upload a PDF or TXT file.")
-    
-    return [
+
+    # Convert text to a list of lines, stripping extra spaces/non-ASCII characters
+    # so we can show these lines separately if needed.
+    clean_lines = [
         re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
         for line in text.splitlines() if line.strip()
     ]
+    return clean_lines
 
 def simplifytext(text, client, patientcontext=None):
     # DO NOT change the prompt below
@@ -73,30 +76,33 @@ def evaluatereadability(simplifiedtext):
 
 st.title("Discharge Instruction Simplifier")
 
-# 1. Let the user choose their view BEFORE uploading a file.
+# Let the user choose their view BEFORE uploading a file.
 view_type = st.radio("Choose your view:", ["Patient", "Clinician"], index=0)
 
-# 2. File uploader appears next.
+# File uploader
 uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
 
-# 3. If file has been uploaded, proceed to text processing.
+# If user selects Clinician view, show the patient context input
+if view_type == "Clinician":
+    patientcontext = st.text_input("Enter patient context (optional):")
+else:
+    # For Patient view, we won't ask for patient context
+    patientcontext = None
+
 if uploadfile is not None:
     data = loadandpreprocess(uploadfile)
     if data:
+        # Combine lines into a single string for LLM prompt
         originaltext = " ".join(data)
 
         with st.spinner("Initializing OpenRouter client..."):
-            # The OpenRouter client is used for completions.
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
-
-        # Optional patient context input.
-        patientcontext = st.text_input("Enter patient context (optional):")
 
         with st.spinner("Simplifying the text..."):
             simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
 
-        # 4. Display results depending on view type.
         if view_type == "Patient":
+            # Show only simplified text
             st.subheader("Simplified Text")
             st.write(simplifiedtext)
 
@@ -106,8 +112,11 @@ if uploadfile is not None:
 
         else:  # Clinician
             st.subheader("Original Discharge Instructions")
-            st.write(originaltext)
+            # Show original text with a structured layout
+            for paragraph in data:
+                st.write(f"- {paragraph}")
 
+            # If patientcontext is provided, show it
             if patientcontext:
                 st.subheader("Patient Context Provided")
                 st.write(patientcontext)
