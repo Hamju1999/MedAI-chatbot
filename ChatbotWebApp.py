@@ -154,4 +154,30 @@ with tabs[1]:
             st.write(patientcontext_input)
 
         st.subheader("Simplified Text (With Context)")
-        st.write(simplifiedtext_with_
+        st.write(simplifiedtext_with_context)
+
+        # Show reading ease
+        readability_score_context = evaluatereadability(simplifiedtext_with_context)
+        st.subheader("Readability Score (Flesch Reading Ease)")
+        st.write(readability_score_context)
+
+    else:
+        # If the user hasn't entered or applied patient context yet,
+        # we can default to the no-context version here.
+        st.subheader("Original Discharge Instructions (Clinician View)")
+        for paragraph in data:
+            st.write(paragraph)
+            st.write("")
+
+        st.info("No patient context applied yet. Click 'Simplify with Context' to apply context.")
+
+        st.subheader("Current Simplified Text (No Context)")
+        st.write(simplifiedtext_no_context)
+
+        readability_score_no_context = evaluatereadability(simplifiedtext_no_context)
+        st.subheader("Readability Score (Flesch Reading Ease)")
+        st.write(readability_score_no_context)
+    else:
+        st.warning("No valid data found in the file.")
+else:
+    st.info("Please upload a discharge instructions file (PDF or TXT).")
