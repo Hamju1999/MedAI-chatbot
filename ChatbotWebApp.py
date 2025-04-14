@@ -100,21 +100,19 @@ def get_embedding(text):
             input=text,
             model="text-embedding-ada-002"
         )
-        # Extract the raw embedding as a NumPy array with float32 precision.
+        # Convert the raw embedding to a NumPy array with 32-bit precision.
         raw_embedding = response.data[0].embedding
         embedding = np.array(raw_embedding, dtype=np.float32)
         
-        # Ensure the embedding has the expected dimension (1536 for text-embedding-ada-002).
+        # Replace any NaN or infinite values with 0.0.
+        embedding = np.nan_to_num(embedding, nan=0.0, posinf=0.0, neginf=0.0)
+        
+        # Verify the embedding has the expected dimension (1536 for text-embedding-ada-002).
         expected_dim = 1536
         if embedding.shape[0] != expected_dim:
             st.error(f"Embedding dimension mismatch: expected {expected_dim} but got {embedding.shape[0]}")
             return None
-
-        # Verify that every value is finite.
-        if not np.all(np.isfinite(embedding)):
-            st.error("Embedding contains non-finite values.")
-            return None
-
+        
         # Normalize the embedding vector (L2 normalization).
         norm = np.linalg.norm(embedding)
         if norm == 0:
@@ -122,15 +120,13 @@ def get_embedding(text):
             return None
         normalized = embedding / norm
 
-        # Round the normalized values to reduce precision issues.
-        normalized = np.round(normalized, decimals=6)
+        # Round the normalized vector to reduce precision issues.
+        normalized = np.round(normalized, decimals=8)
         
         return normalized.tolist()
     except Exception as e:
         st.error(f"Error generating embedding: {e}")
         return None
-
-
 def upsert_chunks(chunks, index):
     """
     Generates embeddings for each chunk and upserts them into the provided Pinecone index.
