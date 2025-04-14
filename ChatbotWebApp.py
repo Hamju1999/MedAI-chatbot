@@ -86,10 +86,9 @@ def chunk_text(text, chunk_size=500):
         chunks.append(chunk)
     return chunks
 
+embeddings_client = OpenAI(base_url="https://api.openai.com/v1", api_key=st.secrets["OPENAI_API_KEY"])
+
 def get_embedding(text, client):
-    """
-    Uses the OpenRouter client to generate an embedding for the given text.
-    """
     try:
         response = client.embeddings.create(
             input=text,
