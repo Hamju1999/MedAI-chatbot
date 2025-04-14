@@ -10,13 +10,13 @@ from openai import OpenAI
 for package in ['punkt', 'punkt_tab']:
     try:
         nltk.data.find(package)
-    except Exception as e:
-        print(f"Error finding {package} data: {e}")
+    except Exception:
         nltk.download(package)
 
 llmcache = {}
 
 def loadandpreprocess(uploadfile):
+    """Load and clean the uploaded file data."""
     _, ext = os.path.splitext(uploadfile.name)
     text = ""
     if ext.lower() == ".pdf":
@@ -32,8 +32,8 @@ def loadandpreprocess(uploadfile):
             st.error(f"Error reading TXT file: {e}")
     else:
         st.error("Unsupported file format. Please upload a PDF or TXT file.")
-    
-    # Clean up each line: remove non-ASCII, extra spaces, etc.
+
+    # Clean each line
     lines = [
         re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
         for line in text.splitlines() if line.strip()
@@ -66,8 +66,7 @@ def simplifytext(text, client, patientcontext=None):
         return f"[OpenRouter Error] {e}"
 
 def evaluatereadability(simplifiedtext):
-    score = textstat.flesch_reading_ease(simplifiedtext)
-    return score
+    return textstat.flesch_reading_ease(simplifiedtext)
 
 ##########################
 # Streamlit App Interface
@@ -75,64 +74,77 @@ def evaluatereadability(simplifiedtext):
 
 st.title("Discharge Instruction Simplifier")
 
-# Let the user choose their view BEFORE uploading a file.
-view_type = st.radio("Choose your view:", ["Patient", "Clinician"], index=0)
-
-# File uploader
+# 1) File Uploader - looks like "Browse files"
 uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
 
-# Only show "patient context" input if in Clinician view
-if view_type == "Clinician":
-    patientcontext = st.text_input("Enter patient context (optional):")
-else:
-    patientcontext = None
+# If nothing uploaded, stop and wait
+if not uploadfile:
+    st.stop()
 
-# Process the uploaded file
-if uploadfile is not None:
-    data = loadandpreprocess(uploadfile)
-    if data:
-        originaltext = " ".join(data)
+# 2) Read and clean file
+lines = loadandpreprocess(uploadfile)
+if not lines:
+    st.warning("No valid data found in the file.")
+    st.stop()
 
-        with st.spinner("Initializing OpenRouter client..."):
-            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
+original_text = " ".join(lines)
 
-        with st.spinner("Simplifying the text..."):
-            simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
+# 3) Initialize the OpenRouter client
+with st.spinner("Initializing OpenRouter client..."):
+    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
 
-        if view_type == "Patient":
-            # Show only simplified text
-            st.subheader("Simplified Text")
-            st.write(simplifiedtext)
+# 4) Generate a simplified version with no context (used in Patient View)
+with st.spinner("Simplifying text without context..."):
+    simplified_no_context = simplifytext(original_text, client, patientcontext=None)
 
-            readability = evaluatereadability(simplifiedtext)
-            st.subheader("Readability Score (Flesch Reading Ease)")
-            st.write(readability)
+# 5) Show horizontal tabs for Patient View and Clinician View
+patient_tab, clinician_tab = st.tabs(["Patient View", "Clinician View"])
 
-        else:  # Clinician
-            st.subheader("Original Discharge Instructions")
+##################################
+# Patient View Tab
+##################################
+with patient_tab:
+    st.subheader("Simplified Text (No Context)")
+    st.write(simplified_no_context)
 
-            # Display each line with optional heuristic for headings
-            for paragraph in data:
-                # Example: If the line is all uppercase or ends with a colon, treat as "heading"
-                if paragraph.isupper() or paragraph.endswith(":"):
-                    # Bold it or treat as a subheader
-                    st.markdown(f"**{paragraph}**")
-                else:
-                    # Normal line
-                    st.write(paragraph)
-                st.write("")  # Blank line for spacing
+    readability_score = evaluatereadability(simplified_no_context)
+    st.subheader("Readability Score (Flesch Reading Ease)")
+    st.write(readability_score)
 
-            if patientcontext:
-                st.subheader("Patient Context Provided")
-                st.write(patientcontext)
+##################################
+# Clinician View Tab
+##################################
+with clinician_tab:
+    st.subheader("Original Discharge Instructions")
+    # Display original text line-by-line, no bullet points
+    for paragraph in lines:
+        st.write(paragraph)
+        st.write("")  # a blank line for spacing
 
-            st.subheader("Simplified Text (Patient-Friendly)")
-            st.write(simplifiedtext)
+    # Allow the Clinician to enter optional patient context
+    patient_context_input = st.text_input("Enter patient context (optional):")
 
-            readability = evaluatereadability(simplifiedtext)
-            st.subheader("Readability Score (Flesch Reading Ease)")
-            st.write(readability)
+    # Button to re-simplify using the context
+    if st.button("Simplify with Patient Context"):
+        with st.spinner("Re-simplifying with clinician's context..."):
+            simplified_with_context = simplifytext(
+                original_text,
+                client,
+                patientcontext=patient_context_input
+            )
+
+        st.subheader("Simplified Text (With Context)")
+        st.write(simplified_with_context)
+
+        context_score = evaluatereadability(simplified_with_context)
+        st.subheader("Readability Score (Flesch Reading Ease)")
+        st.write(context_score)
+
     else:
-        st.warning("No valid data found in the file.")
-else:
-    st.info("Please upload a discharge instructions file (PDF or TXT).")
+        st.info("No context applied yet. Above is the default ‘no context’ simplified text.")
+        st.subheader("Current Simplified Text (No Context)")
+        st.write(simplified_no_context)
+
+        no_context_score = evaluatereadability(simplified_no_context)
+        st.subheader("Readability Score (Flesch Reading Ease)")
+        st.write(no_context_score)
