@@ -94,28 +94,35 @@ def chunk_text(text, chunk_size=500):
 # Create a dedicated embeddings client using the official OpenAI endpoint.
 embeddings_client = OpenAI(base_url="https://api.openai.com/v1", api_key=st.secrets["OPENAI_API_KEY"])
 
-
 def get_embedding(text):
     try:
         response = embeddings_client.embeddings.create(
             input=text,
             model="text-embedding-ada-002"
         )
-        # For each element, first cast to float32 then convert to a Python float.
-        embedding = [float(np.float32(x)) for x in response.data[0].embedding]
+        # Convert the raw embedding to a NumPy float32 array.
+        embedding = np.array(response.data[0].embedding, dtype=np.float32)
         
+        # Ensure the embedding has the correct dimension.
         expected_dim = 1536
-        if len(embedding) != expected_dim:
-            st.error(f"Embedding dimension mismatch: expected {expected_dim} but got {len(embedding)}")
+        if embedding.shape[0] != expected_dim:
+            st.error(f"Embedding dimension mismatch: expected {expected_dim} but got {embedding.shape[0]}")
+            return None
+        
+        # Validate that every value is finite.
+        if not np.all(np.isfinite(embedding)):
+            st.error("Embedding contains non-finite values.")
             return None
 
-        # Validate every value is finite.
-        for i, val in enumerate(embedding):
-            if math.isnan(val) or math.isinf(val):
-                st.error(f"Invalid value found in embedding vector at index {i}: {val}")
-                return None
+        # Normalize the embedding vector (L2 normalization) for cosine similarity.
+        norm = np.linalg.norm(embedding)
+        if norm > 0:
+            embedding = embedding / norm
+        else:
+            st.error("Embedding vector has zero norm.")
+            return None
         
-        return embedding
+        return embedding.tolist()
     except Exception as e:
         st.error(f"Error generating embedding: {e}")
         return None
