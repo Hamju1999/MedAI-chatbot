@@ -86,11 +86,12 @@ def chunk_text(text, chunk_size=500):
         chunks.append(chunk)
     return chunks
 
+# Create a dedicated embeddings client using the official OpenAI endpoint.
 embeddings_client = OpenAI(base_url="https://api.openai.com/v1", api_key=st.secrets["OPENAI_API_KEY"])
 
-def get_embedding(text, client):
+def get_embedding(text):
     try:
-        response = client.embeddings.create(
+        response = embeddings_client.embeddings.create(
             input=text,
             model="text-embedding-ada-002"
         )
@@ -99,13 +100,13 @@ def get_embedding(text, client):
         st.error(f"Error generating embedding: {e}")
         return None
 
-def upsert_chunks(chunks, client, index):
+def upsert_chunks(chunks, index):
     """
     Generates embeddings for each chunk and upserts them into the provided Pinecone index.
     """
     vectors = []
     for chunk in chunks:
-        emb = get_embedding(chunk, client)
+        emb = get_embedding(chunk)
         if emb:
             vector_id = str(uuid.uuid4())
             vectors.append((vector_id, emb, {"text": chunk}))
@@ -113,11 +114,11 @@ def upsert_chunks(chunks, client, index):
         index.upsert(vectors)
     return index
 
-def retrieve_relevant_chunks(query, index, client, top_k=5):
+def retrieve_relevant_chunks(query, index, top_k=5):
     """
     Retrieves the top_k most relevant chunks from the Pinecone index given the query.
     """
-    query_emb = get_embedding(query, client)
+    query_emb = get_embedding(query)
     if query_emb is None:
         return []
     result = index.query(queries=[query_emb], top_k=top_k, include_metadata=True)
@@ -138,6 +139,7 @@ if uploadfile is not None:
         originaltext = " ".join(data)
         
         with st.spinner("Initializing OpenRouter client..."):
+            # The OpenRouter client is used for completions only.
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
         
         # Initialize Pinecone using the new API via the Pinecone class
@@ -162,7 +164,7 @@ if uploadfile is not None:
         chunks = chunk_text(originaltext, chunk_size=500)
         
         with st.spinner("Upserting text chunks into vector DB..."):
-            index = upsert_chunks(chunks, client, index)
+            index = upsert_chunks(chunks, index)
         
         # Allow user to enter additional patient context (optional)
         patientcontext = st.text_input("Enter patient context (optional):")
@@ -172,7 +174,7 @@ if uploadfile is not None:
         
         if query:
             with st.spinner("Retrieving relevant text chunks based on your query..."):
-                relevant_chunks = retrieve_relevant_chunks(query, index, client, top_k=5)
+                relevant_chunks = retrieve_relevant_chunks(query, index, top_k=5)
             # Combine retrieved chunks into a single text block
             combined_text = " ".join(relevant_chunks)
             
