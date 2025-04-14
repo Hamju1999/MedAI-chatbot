@@ -159,7 +159,7 @@ if uploadfile is not None:
         
         # Initialize Pinecone with your credentials from st.secrets
         with st.spinner("Initializing Pinecone Vector DB..."):
-            pinecone.init(api_key=st.secrets["PINECONE_API_KEY"], environment=st.secrets["PINECONE_ENV"])
+            pinecone.init(api_key=st.secrets["PINECONE_API_KEY"], region=st.secrets["PINECONE_REGION"])
         
         # Chunk the original text into manageable pieces
         chunks = chunk_text(originaltext, chunk_size=500)
