@@ -6,7 +6,7 @@ import PyPDF2
 import textstat
 import streamlit as st
 from openai import OpenAI
-import pinecone
+from pinecone import Pinecone, ServerlessSpec
 
 # Ensure required NLTK packages are available
 for package in ['punkt', 'punkt_tab']:
@@ -100,30 +100,14 @@ def get_embedding(text, client):
         st.error(f"Error generating embedding: {e}")
         return None
 
-def upsert_chunks(chunks, client):
+def upsert_chunks(chunks, client, index):
     """
-    Generates embeddings for each chunk and upserts them into a Pinecone index.
-    Returns the index object.
+    Generates embeddings for each chunk and upserts them into the provided Pinecone index.
     """
-    index_name = "discharge-instructions"
-
-    # Generate an embedding from the first chunk to determine the vector dimension
-    sample_embedding = get_embedding(chunks[0], client)
-    if sample_embedding is None:
-        st.error("Failed to generate sample embedding; aborting upsert.")
-        return None
-    dimension = len(sample_embedding)
-
-    # Initialize Pinecone (assumes your API keys are stored in st.secrets)
-    if index_name not in pinecone.list_indexes():
-        pinecone.create_index(index_name, dimension=dimension)
-    index = pinecone.Index(index_name)
-
     vectors = []
     for chunk in chunks:
         emb = get_embedding(chunk, client)
         if emb:
-            # Use a unique id for each vector
             vector_id = str(uuid.uuid4())
             vectors.append((vector_id, emb, {"text": chunk}))
     if vectors:
@@ -157,17 +141,29 @@ if uploadfile is not None:
         with st.spinner("Initializing OpenRouter client..."):
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
         
-        # Initialize Pinecone with your credentials from st.secrets
+        # Initialize Pinecone using the new API via the Pinecone class
         with st.spinner("Initializing Pinecone Vector DB..."):
-            pinecone.init(api_key=st.secrets["PINECONE_API_KEY"], region=st.secrets["PINECONE_REGION"])
+            index_name = "discharge-instructions"
+            # Create a Pinecone instance (serverless)
+            pc = Pinecone(api_key=st.secrets["PINECONE_API_KEY"])
+            # Check if index exists; if not, create one with the proper dimension (1536) and metric ("cosine")
+            if index_name not in pc.list_indexes().names():
+                pc.create_index(
+                    name=index_name,
+                    dimension=1536,
+                    metric="cosine",
+                    spec=ServerlessSpec(
+                        cloud=st.secrets["PINECONE_CLOUD"],    # e.g., "aws" or "gcp"
+                        region=st.secrets["PINECONE_REGION"]     # e.g., "us-west1-gcp" or "us-west-2"
+                    )
+                )
+            index = pc.Index(index_name)
         
         # Chunk the original text into manageable pieces
         chunks = chunk_text(originaltext, chunk_size=500)
         
         with st.spinner("Upserting text chunks into vector DB..."):
-            index = upsert_chunks(chunks, client)
-            if index is None:
-                st.error("Vector DB initialization failed.")
+            index = upsert_chunks(chunks, client, index)
         
         # Allow user to enter additional patient context (optional)
         patientcontext = st.text_input("Enter patient context (optional):")
@@ -175,7 +171,7 @@ if uploadfile is not None:
         # Allow user to optionally ask a specific query about the instructions
         query = st.text_input("Enter a query regarding the discharge instructions (optional):")
         
-        if query and index:
+        if query:
             with st.spinner("Retrieving relevant text chunks based on your query..."):
                 relevant_chunks = retrieve_relevant_chunks(query, index, client, top_k=5)
             # Combine retrieved chunks into a single text block
