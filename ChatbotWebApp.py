@@ -1,10 +1,12 @@
 import os
-import PyPDF2
-import nltk
 import re
+import uuid
+import nltk
+import PyPDF2
 import textstat
 import streamlit as st
 from openai import OpenAI
+import pinecone
 
 # Ensure required NLTK packages are available
 for package in ['punkt', 'punkt_tab']:
@@ -39,6 +41,7 @@ def loadandpreprocess(uploadfile):
     ]
 
 def simplifytext(text, client, patientcontext=None):
+    # DO NOT change the prompt below
     prompt = (
         f"Patient Context:\n{patientcontext}\n\n"
         f"Medical Instructions:\n{text}\n\n"
@@ -72,24 +75,121 @@ def evaluatereadability(simplifiedtext):
     score = textstat.flesch_reading_ease(simplifiedtext)
     return score
 
-st.title("Discharge Instruction")
+def chunk_text(text, chunk_size=500):
+    """
+    Splits the input text into chunks containing approximately chunk_size words.
+    """
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), chunk_size):
+        chunk = " ".join(words[i:i+chunk_size])
+        chunks.append(chunk)
+    return chunks
+
+def get_embedding(text, client):
+    """
+    Uses the OpenRouter client to generate an embedding for the given text.
+    """
+    try:
+        response = client.embeddings.create(
+            input=text,
+            model="text-embedding-ada-002"
+        )
+        return response["data"][0]["embedding"]
+    except Exception as e:
+        st.error(f"Error generating embedding: {e}")
+        return None
+
+def upsert_chunks(chunks, client):
+    """
+    Generates embeddings for each chunk and upserts them into a Pinecone index.
+    Returns the index object.
+    """
+    index_name = "discharge-instructions"
+
+    # Generate an embedding from the first chunk to determine the vector dimension
+    sample_embedding = get_embedding(chunks[0], client)
+    if sample_embedding is None:
+        st.error("Failed to generate sample embedding; aborting upsert.")
+        return None
+    dimension = len(sample_embedding)
+
+    # Initialize Pinecone (assumes your API keys are stored in st.secrets)
+    if index_name not in pinecone.list_indexes():
+        pinecone.create_index(index_name, dimension=dimension)
+    index = pinecone.Index(index_name)
+
+    vectors = []
+    for chunk in chunks:
+        emb = get_embedding(chunk, client)
+        if emb:
+            # Use a unique id for each vector
+            vector_id = str(uuid.uuid4())
+            vectors.append((vector_id, emb, {"text": chunk}))
+    if vectors:
+        index.upsert(vectors)
+    return index
+
+def retrieve_relevant_chunks(query, index, client, top_k=5):
+    """
+    Retrieves the top_k most relevant chunks from the Pinecone index given the query.
+    """
+    query_emb = get_embedding(query, client)
+    if query_emb is None:
+        return []
+    result = index.query(queries=[query_emb], top_k=top_k, include_metadata=True)
+    matches = result["results"][0]["matches"]
+    retrieved_chunks = [match["metadata"]["text"] for match in matches]
+    return retrieved_chunks
+
+##########################
+# Streamlit App Interface
+##########################
+
+st.title("Discharge Instruction with RAG Enhancement")
 uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
 
 if uploadfile is not None:
     data = loadandpreprocess(uploadfile)
     if data:
         originaltext = " ".join(data)
+        
         with st.spinner("Initializing OpenRouter client..."):
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
+        
+        # Initialize Pinecone with your credentials from st.secrets
+        with st.spinner("Initializing Pinecone Vector DB..."):
+            pinecone.init(api_key=st.secrets["PINECONE_API_KEY"], environment=st.secrets["PINECONE_ENV"])
+        
+        # Chunk the original text into manageable pieces
+        chunks = chunk_text(originaltext, chunk_size=500)
+        
+        with st.spinner("Upserting text chunks into vector DB..."):
+            index = upsert_chunks(chunks, client)
+            if index is None:
+                st.error("Vector DB initialization failed.")
+        
+        # Allow user to enter additional patient context (optional)
         patientcontext = st.text_input("Enter patient context (optional):")
-        with st.spinner("Simplifying text..."):
-            simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
+        
+        # Allow user to optionally ask a specific query about the instructions
+        query = st.text_input("Enter a query regarding the discharge instructions (optional):")
+        
+        if query and index:
+            with st.spinner("Retrieving relevant text chunks based on your query..."):
+                relevant_chunks = retrieve_relevant_chunks(query, index, client, top_k=5)
+            # Combine retrieved chunks into a single text block
+            combined_text = " ".join(relevant_chunks)
+            
+            with st.spinner("Simplifying text based on retrieved relevant chunks..."):
+                simplifiedtext = simplifytext(combined_text, client, patientcontext=patientcontext)
+        else:
+            with st.spinner("Simplifying the complete text..."):
+                simplifiedtext = simplifytext(originaltext, client, patientcontext=patientcontext)
+                
         st.subheader("Simplified Text")
         st.write(simplifiedtext)
-        # Uncomment these lines if you want to extract and display key information.
-        # keyinfo = extractkeyinfo(simplifiedtext)
-        # st.subheader("Extracted Key Information")
-        # st.write(keyinfo)
+        
         readability = evaluatereadability(simplifiedtext)
         st.subheader("Readability Score (Flesch Reading Ease)")
         st.write(readability)
