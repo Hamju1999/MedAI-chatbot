@@ -177,7 +177,3 @@ with tabs[1]:
         readability_score_no_context = evaluatereadability(simplifiedtext_no_context)
         st.subheader("Readability Score (Flesch Reading Ease)")
         st.write(readability_score_no_context)
-    else:
-        st.warning("No valid data found in the file.")
-else:
-    st.info("Please upload a discharge instructions file (PDF or TXT).")
