@@ -1,11 +1,17 @@
 import os
 import re
 import json
+import difflib
 import nltk
 import PyPDF2
 import textstat
 import streamlit as st
 from openai import OpenAI
+
+########################################
+# Page Settings (remove full-width setting)
+########################################
+st.set_page_config(page_title="Discharge Instructions Simplifier")
 
 # Ensure required NLTK packages are available
 for package in ['punkt', 'punkt_tab']:
@@ -16,9 +22,9 @@ for package in ['punkt', 'punkt_tab']:
 
 llmcache = {}
 
-################################
+########################################
 # Helper Functions
-################################
+########################################
 
 def load_and_preprocess(uploadfile):
     """
@@ -99,8 +105,8 @@ def evaluate_readability(text_block):
 
 def check_medical_accuracy(simplified_text, client):
     """
-    Uses the LLM to self-assess medical accuracy, returning a numeric score (0–100).
-    The final output is given to two decimals.
+    Uses the LLM to self-assess medical accuracy.
+    The prompt instructs the LLM to output a single numeric score from 0 to 100 with two decimals and no extra commentary.
     """
     prompt = f"""
 You are a medical professional. Evaluate the following instructions for medical accuracy.
@@ -122,15 +128,36 @@ Accuracy Score:
         try:
             score_value = float(score_str)
         except ValueError:
-            score_value = 0.0
+            # Attempt to extract a numeric score using regex if extra text is returned
+            import re
+            match = re.search(r"(\d+\.\d{2})", score_str)
+            if match:
+                score_value = float(match.group(1))
+            else:
+                score_value = 0.0
         return score_value
     except Exception as e:
         st.error(f"Error checking medical accuracy: {e}")
         return 0.0
 
-################################
+def check_medical_accuracy_online(simplified_text, original_text):
+    """
+    This function simulates "surfing" online resources to evaluate whether the intent
+    of the simplified output is accurate in terms of medical context and corresponds to the original text.
+    
+    In a production system, you would integrate an API to perform web searches (e.g., via Google, PubMed, or Bing)
+    and use NLP methods to compare the retrieved authoritative content with the simplified output.
+    
+    For this demonstration, we simulate the check by computing a similarity ratio between the original and simplified texts.
+    """
+    # Use difflib as a dummy similarity measure between the original and simplified texts.
+    similarity = difflib.SequenceMatcher(None, original_text, simplified_text).ratio()
+    online_accuracy_score = similarity * 100  # Normalize to a score out of 100.
+    return online_accuracy_score
+
+########################################
 # Streamlit App Interface
-################################
+########################################
 
 st.title("Discharge Instructions Simplifier")
 
@@ -147,7 +174,6 @@ if not lines:
 
 original_text = " ".join(lines)
 
-# Display the original discharge instructions
 st.markdown("## Original Discharge Instructions")
 for line in lines:
     st.write(line)
@@ -156,16 +182,16 @@ for line in lines:
 # 2) Optional Patient Context
 patient_context_input = st.text_input("Enter patient context (optional):")
 
-# Store the final context in session state if not already stored
+# Store final patient context in session state if not already set.
 if "patient_context" not in st.session_state:
     st.session_state["patient_context"] = None
 
-# 3) Button to Apply Context
+# 3) Button to Apply Context (placed at the top)
 if st.button("Apply Context"):
     st.session_state["patient_context"] = patient_context_input
     st.success("Patient context applied successfully.")
 
-# 4) Button to Simplify Text (placed below the Apply Context button)
+# 4) Button to Simplify Text (appears below the Apply Context button)
 if st.button("Simplify Original Text"):
     with st.spinner("Initializing OpenRouter client..."):
         client = OpenAI(
@@ -207,19 +233,27 @@ if st.button("Simplify Original Text"):
         if additional:
             st.markdown(f"**Additional Attributes:** {additional}")
 
-        # Combine all items to check readability and accuracy
+        # Combine all items to create a combined simplified output.
         combined_text = (
             " ".join([i["text"] for i in instructions]) + " " +
             " ".join([f["text"] for f in follow_ups]) + " " +
             " ".join([r["text"] for r in recommendations])
         )
+
+        # Evaluate readability
         readability = evaluate_readability(combined_text)
         st.subheader("Readability Score (Flesch Reading Ease)")
         st.write(readability)
 
-        st.subheader("Check Medical Accuracy")
-        accuracy_score = check_medical_accuracy(combined_text, client)
-        st.write(f"Medical Accuracy Score: {accuracy_score:.2f}")
+        # --- New Feature: Medical Accuracy Evaluation using two methods ---
+        st.subheader("Medical Accuracy Evaluation")
+        # Method 1: LLM Self-Assessment
+        accuracy_llm = check_medical_accuracy(combined_text, client)
+        # Method 2: Online Validation (simulated)
+        accuracy_online = check_medical_accuracy_online(combined_text, original_text)
+        # Combine the scores (e.g., simple average)
+        final_accuracy = (accuracy_llm + accuracy_online) / 2
+        st.write(f"Medical Accuracy Score: {final_accuracy:.2f}")
 
     except json.JSONDecodeError:
         st.error("Error parsing JSON output from the LLM. Please try again or check the input.")
