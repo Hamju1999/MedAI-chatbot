@@ -7,14 +7,6 @@ import textstat
 import streamlit as st
 from openai import OpenAI
 
-##########################
-# Page Configuration
-##########################
-st.set_page_config(
-    page_title="Discharge Instructions Simplifier",
-    layout="wide"  # Ensures content (including simplified text) is full-width
-)
-
 # Ensure required NLTK packages are available
 for package in ['punkt', 'punkt_tab']:
     try:
@@ -110,7 +102,6 @@ def check_medical_accuracy(simplified_text, client):
     Uses the LLM to self-assess medical accuracy, returning a numeric score (0–100).
     The final output is given to two decimals.
     """
-    # Prompt to ask for a single numeric score with no extra commentary
     prompt = f"""
 You are a medical professional. Evaluate the following instructions for medical accuracy.
 Provide a single score from 0 to 100, with exactly two decimals. No extra commentary.
@@ -128,7 +119,6 @@ Accuracy Score:
             top_p=1
         )
         score_str = response.choices[0].message.content.strip()
-        # Attempt to parse float
         try:
             score_value = float(score_str)
         except ValueError:
@@ -157,7 +147,7 @@ if not lines:
 
 original_text = " ".join(lines)
 
-# Show the original discharge instructions at full width
+# Display the original discharge instructions
 st.markdown("## Original Discharge Instructions")
 for line in lines:
     st.write(line)
@@ -166,74 +156,70 @@ for line in lines:
 # 2) Optional Patient Context
 patient_context_input = st.text_input("Enter patient context (optional):")
 
-# Store the final context in session state
+# Store the final context in session state if not already stored
 if "patient_context" not in st.session_state:
     st.session_state["patient_context"] = None
 
-# 3) Two separate buttons for user actions, side by side
-col1, col2 = st.columns(2)
+# 3) Button to Apply Context
+if st.button("Apply Context"):
+    st.session_state["patient_context"] = patient_context_input
+    st.success("Patient context applied successfully.")
 
-with col1:
-    if st.button("Apply Context"):
-        st.session_state["patient_context"] = patient_context_input
-        st.success("Patient context applied successfully.")
+# 4) Button to Simplify Text (placed below the Apply Context button)
+if st.button("Simplify Original Text"):
+    with st.spinner("Initializing OpenRouter client..."):
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=st.secrets["OPENROUTER_API_KEY"]
+        )
 
-with col2:
-    if st.button("Simplify Original Text"):
-        with st.spinner("Initializing OpenRouter client..."):
-            client = OpenAI(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=st.secrets["OPENROUTER_API_KEY"]
-            )
+    with st.spinner("Simplifying Instructions..."):
+        current_context = st.session_state["patient_context"]
+        response_json = extract_and_simplify(original_text, client, current_context)
 
-        with st.spinner("Simplifying Instructions..."):
-            current_context = st.session_state["patient_context"]
-            response_json = extract_and_simplify(original_text, client, current_context)
+    try:
+        data = json.loads(response_json)
 
-        try:
-            data = json.loads(response_json)
+        st.markdown("### Simplified Instructions")
+        instructions = data.get("instructions", [])
+        if instructions:
+            st.markdown("**Instructions:**")
+            for item in instructions:
+                st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
 
-            st.markdown("### Simplified Instructions")
-            instructions = data.get("instructions", [])
-            if instructions:
-                st.markdown("**Instructions:**")
-                for item in instructions:
-                    st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
+        follow_ups = data.get("follow_ups", [])
+        if follow_ups:
+            st.markdown("**Follow-ups:**")
+            for item in follow_ups:
+                st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
 
-            follow_ups = data.get("follow_ups", [])
-            if follow_ups:
-                st.markdown("**Follow-ups:**")
-                for item in follow_ups:
-                    st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
+        recommendations = data.get("recommendations", [])
+        if recommendations:
+            st.markdown("**Recommendations:**")
+            for item in recommendations:
+                st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
 
-            recommendations = data.get("recommendations", [])
-            if recommendations:
-                st.markdown("**Recommendations:**")
-                for item in recommendations:
-                    st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
+        summary = data.get("summary", "")
+        if summary:
+            st.markdown(f"**Summary:** {summary}")
 
-            summary = data.get("summary", "")
-            if summary:
-                st.markdown(f"**Summary:** {summary}")
+        additional = data.get("additional_attributes", "")
+        if additional:
+            st.markdown(f"**Additional Attributes:** {additional}")
 
-            additional = data.get("additional_attributes", "")
-            if additional:
-                st.markdown(f"**Additional Attributes:** {additional}")
+        # Combine all items to check readability and accuracy
+        combined_text = (
+            " ".join([i["text"] for i in instructions]) + " " +
+            " ".join([f["text"] for f in follow_ups]) + " " +
+            " ".join([r["text"] for r in recommendations])
+        )
+        readability = evaluate_readability(combined_text)
+        st.subheader("Readability Score (Flesch Reading Ease)")
+        st.write(readability)
 
-            # Combine all items to measure readability
-            combined_text = (
-                " ".join([i["text"] for i in instructions]) + " " +
-                " ".join([f["text"] for f in follow_ups]) + " " +
-                " ".join([r["text"] for r in recommendations])
-            )
-            readability = evaluate_readability(combined_text)
-            st.subheader("Readability Score (Flesch Reading Ease)")
-            st.write(readability)
+        st.subheader("Check Medical Accuracy")
+        accuracy_score = check_medical_accuracy(combined_text, client)
+        st.write(f"Medical Accuracy Score: {accuracy_score:.2f}")
 
-            # Check medical accuracy (new validation)
-            st.subheader("Check Medical Accuracy")
-            accuracy_score = check_medical_accuracy(combined_text, client)
-            st.write(f"Medical Accuracy Score: {accuracy_score:.2f}")
-
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON output from the LLM. Please try again or check the input.")
+    except json.JSONDecodeError:
+        st.error("Error parsing JSON output from the LLM. Please try again or check the input.")
