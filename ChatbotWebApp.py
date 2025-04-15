@@ -48,7 +48,6 @@ def extract_and_simplify(text, client, patient_context=None):
     Calls the LLM to process the discharge instructions.
     The prompt instructs the LLM to output JSON with these keys:
       - instructions, follow_ups, recommendations, summary, additional_attributes.
-    Each item in the first three sections should include a 'text' and a 'priority'.
     """
     prompt = f"""
 Patient Context (if any): {patient_context}
@@ -74,6 +73,7 @@ Output must be valid JSON with this structure:
 Use a Flesch Reading Ease target between 80 and 90.
 Do not include any commentary outside of the JSON.
 """
+
     if prompt in llmcache:
         return llmcache[prompt]
     try:
@@ -89,163 +89,125 @@ Do not include any commentary outside of the JSON.
     except Exception as e:
         return f'[OpenRouter Error] {e}'
 
-def validate_output(original, simplified_json):
-    """
-    Performs a basic validation by comparing the word counts of the original text
-    and the combined simplified text.
-    """
-    original_len = len(original.split())
-    try:
-        data = json.loads(simplified_json)
-        all_items = data.get("instructions", []) + data.get("follow_ups", []) + data.get("recommendations", [])
-        simplified_texts = " ".join(item["text"] for item in all_items if "text" in item)
-        simplified_len = len(simplified_texts.split())
-        ratio = simplified_len / max(original_len, 1)
-        return f"Original word count: {original_len}, Simplified word count: {simplified_len}, Ratio: {ratio:.2f}"
-    except json.JSONDecodeError:
-        return "Could not parse JSON output from LLM."
-
 def evaluate_readability(text_block):
     """
     Returns the Flesch Reading Ease score for a given text.
     """
     return textstat.flesch_reading_ease(text_block)
 
-def calculate_accuracy_score_llm(output_text, client):
+def validate_output(original, simplified_json):
     """
-    Uses the LLM to self-assess the medical accuracy of the provided output_text.
-    We ask for a single score (0–100) with exactly two decimals.
+    Performs a basic validation by comparing word counts of the original text
+    and the combined simplified text.
     """
-    prompt = f"""
-You are a highly knowledgeable medical expert.
-Evaluate the following simplified discharge instructions for accuracy with respect to current reputable medical guidelines.
-Provide a single accuracy score between 0 and 100, with exactly two decimals. Do not provide any extra commentary.
-    
-Content:
-{output_text}
-
-Accuracy Score:"""
+    original_len = len(original.split())
     try:
-        response = client.chat.completions.create(
-            model="openrouter/auto",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            top_p=1
-        )
-        score_text = response.choices[0].message.content.strip()
-        # Extract numeric value from the response; assume it's a number.
-        try:
-            score_value = float(score_text)
-        except ValueError:
-            score_value = 0.0
-        return score_value
-    except Exception as e:
-        st.error(f"Error calculating LLM accuracy: {e}")
-        return 0.0
-
-def calculate_accuracy_score_web(output_text):
-    """
-    Simulated Internet Search Method.
-    In a production system, this function would perform web search queries against authoritative medical guidelines,
-    compare key terms or statistics, and compute an accuracy score.
-    For demonstration, this function returns a fixed dummy score.
-    """
-    # Dummy implementation; replace with actual web API calls & analysis if available.
-    return 85.50
+        data = json.loads(simplified_json)
+        all_items = data.get("instructions", []) + data.get("follow_ups", []) + data.get("recommendations", [])
+        simplified_texts = " ".join(item.get("text", "") for item in all_items)
+        simplified_len = len(simplified_texts.split())
+        ratio = simplified_len / max(original_len, 1)
+        return f"Original word count: {original_len}, Simplified word count: {simplified_len}, Ratio: {ratio:.2f}"
+    except json.JSONDecodeError:
+        return "Could not parse JSON output from LLM."
 
 ################################
 # Streamlit App Interface
 ################################
 
-st.title("LLM-Powered Discharge Instruction Processor")
+st.title("Discharge Instructions Simplifier")
 
-# File uploader (Browse files)
+# 1) File Uploader
 uploaded_file = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
 if not uploaded_file:
     st.info("Please upload a discharge instructions file.")
     st.stop()
 
-# Preprocess file and display original instructions
+# 2) Load & display original instructions
 lines = load_and_preprocess(uploaded_file)
 if not lines:
     st.warning("No valid text found in the file.")
     st.stop()
 
 original_text = " ".join(lines)
+
 st.markdown("## Original Discharge Instructions")
 for line in lines:
     st.write(line)
     st.write("")
 
-# Optional patient context input
+# 3) Optional patient context
 patient_context_input = st.text_input("Enter patient context (optional):")
 
-# Initialize the OpenRouter client
-with st.spinner("Initializing OpenRouter client..."):
-    client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=st.secrets["OPENROUTER_API_KEY"]
-    )
+# Use session_state to store the final context the user chooses
+if "patient_context" not in st.session_state:
+    st.session_state["patient_context"] = None
 
-# Button to trigger processing
-if st.button("Process Instructions"):
-    with st.spinner("Extracting and Simplifying Instructions..."):
-        response_json = extract_and_simplify(original_text, client, patient_context_input)
+# 4) Two separate buttons for user actions
+col1, col2 = st.columns(2)
 
-    # Display the LLM response from JSON
-    try:
-        data = json.loads(response_json)
+with col1:
+    if st.button("Apply Context"):
+        # Store the user-provided context in session state
+        st.session_state["patient_context"] = patient_context_input
+        st.success("Patient context applied successfully.")
 
-        st.markdown("### Simplified Instructions")
-        instructions = data.get("instructions", [])
-        if instructions:
-            st.markdown("**Instructions:**")
-            for item in instructions:
-                st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
+with col2:
+    if st.button("Simplify Original Text"):
+        with st.spinner("Initializing OpenRouter client..."):
+            client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=st.secrets["OPENROUTER_API_KEY"]
+            )
 
-        follow_ups = data.get("follow_ups", [])
-        if follow_ups:
-            st.markdown("**Follow-ups:**")
-            for item in follow_ups:
-                st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
+        with st.spinner("Extracting and Simplifying Instructions..."):
+            # Retrieve the context from session state (could be None)
+            final_context = st.session_state["patient_context"]
+            response_json = extract_and_simplify(original_text, client, final_context)
 
-        recommendations = data.get("recommendations", [])
-        if recommendations:
-            st.markdown("**Recommendations:**")
-            for item in recommendations:
-                st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
+        # Display the LLM response
+        try:
+            data = json.loads(response_json)
 
-        summary = data.get("summary", "")
-        if summary:
-            st.markdown(f"**Summary:** {summary}")
+            st.markdown("### Simplified Instructions")
+            instructions = data.get("instructions", [])
+            if instructions:
+                st.markdown("**Instructions:**")
+                for item in instructions:
+                    st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
 
-        additional = data.get("additional_attributes", "")
-        if additional:
-            st.markdown(f"**Additional Attributes:** {additional}")
+            follow_ups = data.get("follow_ups", [])
+            if follow_ups:
+                st.markdown("**Follow-ups:**")
+                for item in follow_ups:
+                    st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
 
-        # Evaluate readability for the combined simplified instructions
-        combined_text = (
-            " ".join([i["text"] for i in instructions]) + " " +
-            " ".join([f["text"] for f in follow_ups]) + " " +
-            " ".join([r["text"] for r in recommendations])
-        )
-        readability = evaluate_readability(combined_text)
-        st.subheader("Readability Score (Flesch Reading Ease)")
-        st.write(readability)
+            recommendations = data.get("recommendations", [])
+            if recommendations:
+                st.markdown("**Recommendations:**")
+                for item in recommendations:
+                    st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
 
-        # Display the validation output (basic word count check)
-        st.subheader("Validation Check")
-        st.write(validate_output(original_text, response_json))
+            summary = data.get("summary", "")
+            if summary:
+                st.markdown(f"**Summary:** {summary}")
 
-        # --- New Feature: Medical Accuracy Evaluation ---
-        st.subheader("Medical Accuracy Evaluation")
-        # Method 1: Use LLM self-assessment
-        accuracy_llm = calculate_accuracy_score_llm(combined_text, client)
-        # Method 2: Simulated Internet search accuracy score
-        accuracy_web = calculate_accuracy_score_web(combined_text)
-        # Combine (average) the two scores
-        final_accuracy = (accuracy_llm + accuracy_web) / 2
-        st.write(f"Medical Accuracy Score: {final_accuracy:.2f}")
+            additional = data.get("additional_attributes", "")
+            if additional:
+                st.markdown(f"**Additional Attributes:** {additional}")
 
-    except json.JSONDecodeError:
-        st.error("Error parsing JSON output from the LLM. Please try again or check the input.")
+            # Evaluate readability & validation
+            combined_text = (
+                " ".join([i["text"] for i in instructions]) + " " +
+                " ".join([f["text"] for f in follow_ups]) + " " +
+                " ".join([r["text"] for r in recommendations])
+            )
+            readability = evaluate_readability(combined_text)
+            st.subheader("Readability Score (Flesch Reading Ease)")
+            st.write(readability)
+
+            st.subheader("Validation Check")
+            st.write(validate_output(original_text, response_json))
+
+        except json.JSONDecodeError:
+            st.error("Error parsing JSON output from the LLM. Please try again or check the input.")
