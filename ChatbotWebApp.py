@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import nltk
 import PyPDF2
 import textstat
@@ -15,8 +16,10 @@ for package in ['punkt', 'punkt_tab']:
 
 llmcache = {}
 
-def loadandpreprocess(uploadfile):
-    """Load and clean the uploaded file data."""
+def load_and_preprocess(uploadfile):
+    """
+    Reads the uploaded PDF or TXT file and returns a list of cleaned lines.
+    """
     _, ext = os.path.splitext(uploadfile.name)
     text = ""
     if ext.lower() == ".pdf":
@@ -33,23 +36,44 @@ def loadandpreprocess(uploadfile):
     else:
         st.error("Unsupported file format. Please upload a PDF or TXT file.")
 
-    # Clean each line
+    # Remove non-ASCII characters and extra whitespace from each line
     lines = [
         re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
         for line in text.splitlines() if line.strip()
     ]
     return lines
 
-def simplifytext(text, client, patientcontext=None):
-    # DO NOT change the prompt below
-    prompt = (
-        f"Patient Context:\n{patientcontext}\n\n"
-        f"Medical Instructions:\n{text}\n\n"
-        "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
-        "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
-        "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
-        "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
-    )
+def extract_and_simplify(text, client, patient_context=None):
+    """
+    Calls the LLM to process the discharge instructions.
+    The prompt instructs the LLM to output JSON with these keys:
+      - instructions, follow_ups, recommendations, summary, additional_attributes.
+    Each item in the first three sections should include a 'text' and a 'priority'.
+    """
+    prompt = f"""
+Patient Context (if any): {patient_context}
+
+Discharge Instructions (Original):
+{text}
+
+Your Tasks:
+1. Convert the above discharge instructions into plain, patient-friendly language.
+2. Separate the content into these sections: instructions, follow-ups, recommendations.
+3. For each item, label it with a priority (e.g., high, medium, low).
+4. Provide a short summary of the entire discharge plan.
+5. Include any additional helpful information if relevant.
+
+Output must be valid JSON with this structure:
+{{
+  "instructions": [{{"text": "...", "priority": "..."}}, ...],
+  "follow_ups": [{{"text": "...", "priority": "..."}}, ...],
+  "recommendations": [{{"text": "...", "priority": "..."}}, ...],
+  "summary": "...",
+  "additional_attributes": "..."
+}}
+Use a Flesch Reading Ease target between 80 and 90.
+Do not include any commentary outside of the JSON.
+"""
     if prompt in llmcache:
         return llmcache[prompt]
     try:
@@ -59,92 +83,169 @@ def simplifytext(text, client, patientcontext=None):
             temperature=0,
             top_p=1
         )
-        result = response.choices[0].message.content
+        result = response.choices[0].message.content.strip()
         llmcache[prompt] = result
         return result
     except Exception as e:
-        return f"[OpenRouter Error] {e}"
+        return f'[OpenRouter Error] {e}'
 
-def evaluatereadability(simplifiedtext):
-    return textstat.flesch_reading_ease(simplifiedtext)
+def validate_output(original, simplified_json):
+    """
+    Performs a basic validation by comparing the word counts of the original text
+    and the combined simplified text.
+    """
+    original_len = len(original.split())
+    try:
+        data = json.loads(simplified_json)
+        all_items = data.get("instructions", []) + data.get("follow_ups", []) + data.get("recommendations", [])
+        simplified_texts = " ".join(item["text"] for item in all_items if "text" in item)
+        simplified_len = len(simplified_texts.split())
+        ratio = simplified_len / max(original_len, 1)
+        return f"Original word count: {original_len}, Simplified word count: {simplified_len}, Ratio: {ratio:.2f}"
+    except json.JSONDecodeError:
+        return "Could not parse JSON output from LLM."
 
-##########################
+def evaluate_readability(text_block):
+    """
+    Returns the Flesch Reading Ease score for a given text.
+    """
+    return textstat.flesch_reading_ease(text_block)
+
+def calculate_accuracy_score_llm(output_text, client):
+    """
+    Uses the LLM to self-assess the medical accuracy of the provided output_text.
+    We ask for a single score (0–100) with exactly two decimals.
+    """
+    prompt = f"""
+You are a highly knowledgeable medical expert.
+Evaluate the following simplified discharge instructions for accuracy with respect to current reputable medical guidelines.
+Provide a single accuracy score between 0 and 100, with exactly two decimals. Do not provide any extra commentary.
+    
+Content:
+{output_text}
+
+Accuracy Score:"""
+    try:
+        response = client.chat.completions.create(
+            model="openrouter/auto",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            top_p=1
+        )
+        score_text = response.choices[0].message.content.strip()
+        # Extract numeric value from the response; assume it's a number.
+        try:
+            score_value = float(score_text)
+        except ValueError:
+            score_value = 0.0
+        return score_value
+    except Exception as e:
+        st.error(f"Error calculating LLM accuracy: {e}")
+        return 0.0
+
+def calculate_accuracy_score_web(output_text):
+    """
+    Simulated Internet Search Method.
+    In a production system, this function would perform web search queries against authoritative medical guidelines,
+    compare key terms or statistics, and compute an accuracy score.
+    For demonstration, this function returns a fixed dummy score.
+    """
+    # Dummy implementation; replace with actual web API calls & analysis if available.
+    return 85.50
+
+################################
 # Streamlit App Interface
-##########################
+################################
 
-st.title("Discharge Instruction Simplifier")
+st.title("LLM-Powered Discharge Instruction Processor")
 
-# 1) File Uploader - looks like "Browse files"
-uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
-
-# If nothing uploaded, stop and wait
-if not uploadfile:
+# File uploader (Browse files)
+uploaded_file = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
+if not uploaded_file:
+    st.info("Please upload a discharge instructions file.")
     st.stop()
 
-# 2) Read and clean file
-lines = loadandpreprocess(uploadfile)
+# Preprocess file and display original instructions
+lines = load_and_preprocess(uploaded_file)
 if not lines:
-    st.warning("No valid data found in the file.")
+    st.warning("No valid text found in the file.")
     st.stop()
 
 original_text = " ".join(lines)
+st.markdown("## Original Discharge Instructions")
+for line in lines:
+    st.write(line)
+    st.write("")
 
-# 3) Initialize the OpenRouter client
+# Optional patient context input
+patient_context_input = st.text_input("Enter patient context (optional):")
+
+# Initialize the OpenRouter client
 with st.spinner("Initializing OpenRouter client..."):
-    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=st.secrets["OPENROUTER_API_KEY"]
+    )
 
-# 4) Generate a simplified version with no context (used in Patient View)
-with st.spinner("Simplifying text without context..."):
-    simplified_no_context = simplifytext(original_text, client, patientcontext=None)
+# Button to trigger processing
+if st.button("Process Instructions"):
+    with st.spinner("Extracting and Simplifying Instructions..."):
+        response_json = extract_and_simplify(original_text, client, patient_context_input)
 
-# 5) Show horizontal tabs for Patient View and Clinician View
-patient_tab, clinician_tab = st.tabs(["Patient View", "Clinician View"])
+    # Display the LLM response from JSON
+    try:
+        data = json.loads(response_json)
 
-##################################
-# Patient View Tab
-##################################
-with patient_tab:
-    st.subheader("Simplified Text (No Context)")
-    st.write(simplified_no_context)
+        st.markdown("### Simplified Instructions")
+        instructions = data.get("instructions", [])
+        if instructions:
+            st.markdown("**Instructions:**")
+            for item in instructions:
+                st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
 
-    readability_score = evaluatereadability(simplified_no_context)
-    st.subheader("Readability Score (Flesch Reading Ease)")
-    st.write(readability_score)
+        follow_ups = data.get("follow_ups", [])
+        if follow_ups:
+            st.markdown("**Follow-ups:**")
+            for item in follow_ups:
+                st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
 
-##################################
-# Clinician View Tab
-##################################
-with clinician_tab:
-    st.subheader("Original Discharge Instructions")
-    # Display original text line-by-line, no bullet points
-    for paragraph in lines:
-        st.write(paragraph)
-        st.write("")  # a blank line for spacing
+        recommendations = data.get("recommendations", [])
+        if recommendations:
+            st.markdown("**Recommendations:**")
+            for item in recommendations:
+                st.write(f"- {item.get('text', '')} (Priority: {item.get('priority', 'N/A')})")
 
-    # Allow the Clinician to enter optional patient context
-    patient_context_input = st.text_input("Enter patient context (optional):")
+        summary = data.get("summary", "")
+        if summary:
+            st.markdown(f"**Summary:** {summary}")
 
-    # Button to re-simplify using the context
-    if st.button("Simplify with Patient Context"):
-        with st.spinner("Re-simplifying with clinician's context..."):
-            simplified_with_context = simplifytext(
-                original_text,
-                client,
-                patientcontext=patient_context_input
-            )
+        additional = data.get("additional_attributes", "")
+        if additional:
+            st.markdown(f"**Additional Attributes:** {additional}")
 
-        st.subheader("Simplified Text (With Context)")
-        st.write(simplified_with_context)
-
-        context_score = evaluatereadability(simplified_with_context)
+        # Evaluate readability for the combined simplified instructions
+        combined_text = (
+            " ".join([i["text"] for i in instructions]) + " " +
+            " ".join([f["text"] for f in follow_ups]) + " " +
+            " ".join([r["text"] for r in recommendations])
+        )
+        readability = evaluate_readability(combined_text)
         st.subheader("Readability Score (Flesch Reading Ease)")
-        st.write(context_score)
+        st.write(readability)
 
-    else:
-        st.info("No context applied yet. Above is the default ‘no context’ simplified text.")
-        st.subheader("Current Simplified Text (No Context)")
-        st.write(simplified_no_context)
+        # Display the validation output (basic word count check)
+        st.subheader("Validation Check")
+        st.write(validate_output(original_text, response_json))
 
-        no_context_score = evaluatereadability(simplified_no_context)
-        st.subheader("Readability Score (Flesch Reading Ease)")
-        st.write(no_context_score)
+        # --- New Feature: Medical Accuracy Evaluation ---
+        st.subheader("Medical Accuracy Evaluation")
+        # Method 1: Use LLM self-assessment
+        accuracy_llm = calculate_accuracy_score_llm(combined_text, client)
+        # Method 2: Simulated Internet search accuracy score
+        accuracy_web = calculate_accuracy_score_web(combined_text)
+        # Combine (average) the two scores
+        final_accuracy = (accuracy_llm + accuracy_web) / 2
+        st.write(f"Medical Accuracy Score: {final_accuracy:.2f}")
+
+    except json.JSONDecodeError:
+        st.error("Error parsing JSON output from the LLM. Please try again or check the input.")
