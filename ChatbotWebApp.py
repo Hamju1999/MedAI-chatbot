@@ -86,14 +86,14 @@ class MedAI:
         return text
 
     def loadpdf(self, file_bytes):
-    try:
-        reader = PyPDF2.PdfReader(file_bytes)
-        pdftext = "".join(page.extract_text() or "" for page in reader.pages)
-        st.info("PDF loaded successfully.")
-        return pdftext
-    except Exception as e:
-        st.error(f"Error reading PDF: {e}")
-        return ""
+        try:
+            reader = PyPDF2.PdfReader(file_bytes)
+            pdftext = "".join(page.extract_text() or "" for page in reader.pages)
+            st.info("PDF loaded successfully.")
+            return pdftext
+        except Exception as e:
+            st.error(f"Error reading PDF: {e}")
+            return ""
 
     def pdfquery(self, query: str, pdftext: str) -> str:
     return f"Patient Note:\n{pdftext}\n\nMedical Query:\n{query}" if pdftext else query
