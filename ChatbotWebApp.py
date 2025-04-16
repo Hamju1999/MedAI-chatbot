@@ -37,7 +37,6 @@ def simplifytext(text, client, patientcontext=None):
         "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to discharge instructions structure. "
         "Retain all essential details and full summary while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
     )
-
     if prompt in llmcache:
         return llmcache[prompt]
     try:
