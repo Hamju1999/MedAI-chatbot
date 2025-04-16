@@ -96,7 +96,7 @@ class MedAI:
             return ""
 
     def pdfquery(self, query: str, pdftext: str) -> str:
-    return f"Patient Note:\n{pdftext}\n\nMedical Query:\n{query}" if pdftext else query
+        return f"Patient Note:\n{pdftext}\n\nMedical Query:\n{query}" if pdftext else query
 
     def analyzequery(self, query: str) -> dict:
     historycontext = "\n".join(f"{turn['role']}: {turn['content']}" for turn in self.conversation_history[-4:])
@@ -301,63 +301,63 @@ class MedAI:
         return nltk.sent_tokenize(text)
 
     def fetchtexts(self, urls: list) -> list:
-    results = []
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_url = {executor.submit(self.fetchurl, url): url for url in urls}
-        for future in concurrent.futures.as_completed(future_to_url):
-            url = future_to_url[future]
-            try:
-                text = future.result()
-            except Exception as e:
-                st.error(f"Error processing URL {url}: {e}")
-            else:
-                if text:
-                    results.append((url, text))
-    return results
+        results = []
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_url = {executor.submit(self.fetchurl, url): url for url in urls}
+            for future in concurrent.futures.as_completed(future_to_url):
+                url = future_to_url[future]
+                try:
+                    text = future.result()
+                except Exception as e:
+                    st.error(f"Error processing URL {url}: {e}")
+                else:
+                    if text:
+                        results.append((url, text))
+        return results
 
     def verifyinfo(self, refinedanswer: str, texts: list, threshold: float = 0.75) -> list:
-    matches = []
-    try:
-        refinedembed = similaritymodel.encode(refinedanswer, convert_to_tensor=True)
-    except Exception as e:
-        st.error(f"Error encoding refined answer: {e}")
-        return matches
-    for url, text in texts:
-        sentences = self.splitsentences(text)
-        if not sentences:
-            continue
+        matches = []
         try:
-            sentenceembed = similaritymodel.encode(sentences, convert_to_tensor=True)
-            cosinescores = util.cos_sim(refinedembed, sentenceembed)[0]
-            for i, score in enumerate(cosinescores):
-                similarity = score.item()
-                if similarity >= threshold:
-                    matches.append({
-                        'url': url,
-                        'sentence': sentences[i],
-                        'similarity': similarity
-                    })
+            refinedembed = similaritymodel.encode(refinedanswer, convert_to_tensor=True)
         except Exception as e:
-            st.error(f"Error processing text from {url}: {e}")
-    return sorted(matches, key=lambda x: x['similarity'], reverse=True)
+            st.error(f"Error encoding refined answer: {e}")
+            return matches
+        for url, text in texts:
+            sentences = self.splitsentences(text)
+            if not sentences:
+                continue
+            try:
+                sentenceembed = similaritymodel.encode(sentences, convert_to_tensor=True)
+                cosinescores = util.cos_sim(refinedembed, sentenceembed)[0]
+                for i, score in enumerate(cosinescores):
+                    similarity = score.item()
+                    if similarity >= threshold:
+                        matches.append({
+                            'url': url,
+                            'sentence': sentences[i],
+                            'similarity': similarity
+                        })
+            except Exception as e:
+                st.error(f"Error processing text from {url}: {e}")
+        return sorted(matches, key=lambda x: x['similarity'], reverse=True)
 
     def verifyrefined(self, refinedanswer: str, verificationquery: str) -> dict:
-    st.info(f"Starting verification using query: {verificationquery}")
-    urls = self.searchmedical(verificationquery, num_results=5)
-    if not urls:
-        st.warning("No URLs found for verification.")
-        return {"matches": [], "confidence": 0.0}
-    urltexts = self.fetchtexts(urls)
-    if not urltexts:
-        st.warning("No content fetched for verification.")
-        return {"matches": [], "confidence": 0.0}
-    matches = self.verifyinfo(refinedanswer, urltexts, threshold=0.75)
-    confidence = (
-        sum(match['similarity'] for match in matches) / len(matches) * min(len(matches), 5)
-        if matches
-        else 0.0
-    )
-    return {"matches": matches, "confidence": confidence}
+        st.info(f"Starting verification using query: {verificationquery}")
+        urls = self.searchmedical(verificationquery, num_results=5)
+        if not urls:
+            st.warning("No URLs found for verification.")
+            return {"matches": [], "confidence": 0.0}
+        urltexts = self.fetchtexts(urls)
+        if not urltexts:
+            st.warning("No content fetched for verification.")
+            return {"matches": [], "confidence": 0.0}
+        matches = self.verifyinfo(refinedanswer, urltexts, threshold=0.75)
+        confidence = (
+            sum(match['similarity'] for match in matches) / len(matches) * min(len(matches), 5)
+            if matches
+            else 0.0
+        )
+        return {"matches": matches, "confidence": confidence}
 
     def synthesizeverifiedinfo(self, verificationmatches: list) -> str:
         if not verificationmatches:
