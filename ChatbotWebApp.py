@@ -30,15 +30,29 @@ def loadandpreprocess(uploadfile):
     return lines
 
 def simplifytext(text, client, patientcontext=None):
-    prompt = (
-        f"Patient Context:\n{patientcontext}\n\n"
-        f"Medical Instructions:\n{text}\n\n"
-        "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
-        "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
-        "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
-    )
+    # Build a two‑part prompt: (1) simplified summary, (2) follow‑up task extraction
+    sections = [
+        "You are a clinical summarization assistant. Perform these two tasks on the text below:\n",
+        "1. **Simplified Summary**:\n   - Combine Diagnosis, Treatment, Outcome, and Recommendations into a single coherent paragraph in plain English.\n",
+        "2. **Follow‑Up Task List**:\n"
+        "   - Extract each actionable follow‑up (e.g., 'continue home exercises', 'follow up with primary doctor').\n"
+        "   - For each, assign an 'Importance' (e.g., Critical, Important) and any 'Dependency' (e.g., 'after discharge').\n"
+    ]
+    
+    # Include patient context if available
+    if patientcontext:
+        sections.append(f"**Patient Context (optional):**\n{patientcontext}\n")
+    
+    # Finally, the original instructions
+    sections.append(f"**Original Instructions:**\n{text}")
+    
+    prompt = "\n".join(sections)
+    
+    # Check cache
     if prompt in llmcache:
         return llmcache[prompt]
+    
+    # Call the model
     try:
         response = client.chat.completions.create(
             model="openrouter/auto",
