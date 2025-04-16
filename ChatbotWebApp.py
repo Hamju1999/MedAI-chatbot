@@ -18,6 +18,7 @@ from googlesearch import search as GoogleSearch
 from sklearn.model_selection import train_test_split
 from sentence_transformers import SentenceTransformer, util
 
+# Ensure required NLTK packages are available
 for package in ['punkt', 'punkt_tab']:
     try:
         nltk.data.find(package)
@@ -26,6 +27,10 @@ for package in ['punkt', 'punkt_tab']:
         nltk.download(package)
 
 def loadandpreprocess(uploadfile):
+    """
+    Load and preprocess text from uploaded .pdf or .txt file.
+    Returns list of cleaned lines.
+    """
     _, ext = os.path.splitext(uploadfile.name)
     if ext.lower() == ".pdf":
         try:
@@ -35,187 +40,19 @@ def loadandpreprocess(uploadfile):
             st.error(f"Error reading PDF: {e}")
             text = ""
     else:
-        text = uploadfile.read().decode("utf-8")    
-    return [
-        re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
-        for line in text.splitlines() if line.strip()
-    ]
-
-def simplifytext(text, gptclient, patientcontext=None):
-    prompt = f"Patient context: {patientcontext}\nMedical Instructions: {text}" if patientcontext else text
-    message = (
-        "Simplify the following medical instructions into clear, patient-friendly language. "
-        "Retain the essential details but use plain language and structure the information for easy reading:\n\n" 
-        + prompt
-    )
-    try:
-        response = gptclient.chat.completions.create(
-            model="o1-mini",
-            messages=[{"role": "user", "content": message}],
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"[ChatGPT Error] {e}"
-
-def extractkeyinfo(simplifiedtext):
-    sentences = nltk.sent_tokenize(simplifiedtext)
-    keywords = ['follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', 'medication']
-    keyphrases = [sent for sent in sentences if any(keyword in sent.lower() for keyword in keywords)]
-    return keyphrases
-
-def evaluatereadability(simplifiedtext):
-    score = textstat.flesch_reading_ease(simplifiedtext)
-    return score
-
-@st.cache_resource
-def loadsimilaritymodel():
-    return SentenceTransformer('all-MiniLM-L6-v2')
-similaritymodel = loadsimilaritymodel()
-
-class MedAI:
-    def __init__(self):
-        self.conversation_history = []
-        self.GPTclient = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-        self.deepseekclient = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
-        self.googleclient = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
-        self.llamaclient = OpenAI(api_key=st.secrets["LLAMA_API_KEY"], base_url="https://api.llama-api.com")
-
-    def cleantext(self, text: str) -> str:
-        for char in ["---", "**", "*", "#"]:
-            text = text.replace(char, "")
-        return text
-
-    def loadpdf(self, file_bytes):
         try:
-            reader = PyPDF2.PdfReader(file_bytes)
-            pdftext = "".join(page.extract_text() or "" for page in reader.pages)
-            st.info("PDF loaded successfully.")
-            return pdftext
+            text = uploadfile.read().decode("utf-8")
         except Exception as e:
-            st.error(f"Error reading PDF: {e}")
-            return ""
+            st.error(f"Error reading text file: {e}")
+            text = ""
 
-    def pdfquery(self, query: str, pdftext: str) -> str:
-        return f"Patient Note:\n{pdftext}\n\nMedical Query:\n{query}" if pdftext else query
-
-    def analyzequery(self, query: str) -> dict:
-    historycontext = "\n".join(f"{turn['role']}: {turn['content']}" for turn in self.conversation_history[-4:])
-    prompt = (
-        "Analyze the following medical query. Identify the query type (diagnosis, treatment, prognosis, factual), "
-        "the user intent (information, advice, etc.), and check for the presence of specific medical terminology. "
-        "Return a JSON with keys: 'complexity' (true/false), 'query_type', 'intent', 'medical_terms_present' (true/false), "
-        "and 'parsed_query'.\n\n"
-        f"Conversation History (if any):\n{historycontext}\n\n"
-        f"Query: {query}"
-    )
-    try:
-        response = self.GPTclient.chat.completions.create(
-            model="o1-mini",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        result = json.loads(response.choices[0].message.content)
-    except Exception:
-        common_med_terms = {"diabetes", "hypertension", "cancer", "infection", "diagnosis", "treatment", "prognosis"}
-        query_lower = query.lower()
-        medical_present = any(term in query_lower for term in common_med_terms)
-        result = {
-            "complexity": len(query) > 50 or medical_present,
-            "query_type": "factual",
-            "intent": "information",
-            "medical_terms_present": medical_present,
-            "parsed_query": query.strip()
-        }
-    return result
-
-    def primaryprompt(self, query: str, pdftext: str, analysis: dict) -> str:
-        context = "\n".join([f"{turn['role']}: {turn['content']}" for turn in self.conversation_history[-4:]])
-        basequery = self.pdfquery(query, pdftext)
-        if context:
-            return f"{context}\n\n{basequery}"
-        else:
-            return basequery
-
-    def gpt4(self, query: str) -> str:
-        prompt = (
-            "Answer the following medical query with detailed reasoning, accurate information, and proper medical terminology. "
-            "Cross-check your response with reliable medical knowledge:\n\n" + query
-        )
-        try:
-            response = self.GPTclient.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"[GPT-4 Error] {e}"
-
-    def gpto1(self, query: str) -> str:
-        prompt = (
-            "Answer the following medical query succinctly with proper medical terminology and factual accuracy: "
-            "Cross-check your response with reliable medical knowledge:\n\n" + query
-        )
-        try:
-            response = self.GPTclient.chat.completions.create(
-                model="o1-mini",
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"[o1-mini Error] {e}"
-
-    def gemini(self, query: str) -> str:
-        prompt = (
-            "Answer the following medical query with detailed reasoning and proper medical terminology. "
-            "Verify facts against reliable medical sources:\n\n" + query
-        )
-        try:
-            response = self.googleclient.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
-            return response.text
-        except Exception as e:
-            return f"[Gemini Error] {e}"
-        finally:
-            try:
-                if hasattr(self.googleclient, "close"):
-                    self.googleclient.close()
-            except Exception:
-                pass
-
-    def gemma(self, query: str) -> str:
-        prompt = (
-            "Answer the following medical query with detailed reasoning and proper medical terminology. "
-            "Cross-check facts with reliable sources:\n\n" + query
-        )
-        try:
-            response = self.googleclient.models.generate_content(
-                model="gemma-3-27b-it",
-                contents=prompt
-            )
-            return response.text
-        except Exception as e:
-            return f"[Gemma Error] {e}"
-        finally:
-            try:
-                if hasattr(self.googleclient, "close"):
-                    self.googleclient.close()
-            except Exception:
-                pass
-
-    def deepseek(self, query: str) -> str:
-        prompt = (
-            "Answer the following medical query with detailed reasoning, ensuring factual accuracy and proper medical terminolog: "
-            "Cross-check facts with reliable sources:\n\n" + query
-        )
-        try:
-            response = self.deepseekclient.chat.completions.create(
-                model="deepseek-reasoner",
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"[DeepSeek Error] {e}"
+    cleaned_lines = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Remove non-ASCII and collapse whitespace
+        line = re.sub(r'[^
 
     def llama(self, query: str) -> str:
         prompt = (
