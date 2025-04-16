@@ -55,7 +55,7 @@ def simplifytext(text, client, patientcontext=None):
     # Call the model
     try:
         response = client.chat.completions.create(
-            model="openrouter/auto",
+            model="openai/gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
             top_p=1
