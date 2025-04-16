@@ -41,7 +41,7 @@ def simplifytext(text, client, patientcontext=None):
         return llmcache[prompt]
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-3.5-turbo",
+            model="openrouter/auto",
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
             top_p=1
