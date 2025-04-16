@@ -36,7 +36,6 @@ def simplifytext(text, client, patientcontext=None):
         "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
         "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
         "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
-        "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
     )
     if prompt in llmcache:
         return llmcache[prompt]
