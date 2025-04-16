@@ -42,7 +42,7 @@ def simplifytext(text, client, patientcontext=None):
         return llmcache[prompt]
     try:
         response = client.chat.completions.create(
-            model="nvidia/nemotron-4-340b-instruct",
+            model="openai/gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
             top_p=1
