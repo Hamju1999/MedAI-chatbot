@@ -34,14 +34,14 @@ def simplifytext(text, client, patientcontext=None):
     f"Patient Context:\n{patientcontext}\n\n"
     f"Medical Instructions:\n{text}\n\n"
     "Please simplify and reformat the discharge instructions by following these steps in order:\n"
-    "1. Rewrite using simple, everyday language that someone with limited medical background can easily understand.\n"
-    "2. Preserve all original section headings and retain every essential detail.\n"
-    "3. Paraphrase to about a 5th–6th grade reading level, without outputting any readability metrics.\n"
-    "4. Convert into a concise, step‑by‑step numbered list, each step beginning with an action verb (e.g., “Take,” “Schedule,” “Monitor”).\n"
-    "5. Use active voice and second‑person (“you”), keeping sentences under 10 words each.\n"
-    "6. Adapt phrasing to be culturally appropriate for the patient’s demographic (if provided).\n"
-    "7. Optionally format as bullet points under each heading if that improves clarity.\n"
-    "8. Ensure the final text would score between 80 and 90 on the Flesch Reading Ease scale—but do not output the score.\n"
+    "Rewrite using simple, everyday language that someone with limited medical background can easily understand.\n"
+    "Preserve all original section headings and retain every essential detail.\n"
+    "Paraphrase to about a 5th–6th grade reading level, without outputting any readability metrics.\n"
+    "Convert into a concise, step‑by‑step numbered list, each step beginning with an action verb (e.g., “Take,” “Schedule,” “Monitor”).\n"
+    "Use active voice and second‑person (“you”), keeping sentences under 10 words each.\n"
+    "Adapt phrasing to be culturally appropriate for the patient’s demographic (if provided).\n"
+    "Optionally format as bullet points under each heading if that improves clarity.\n"
+    "Ensure the final text would score between 80 and 90 on the Flesch Reading Ease scale—but do not output the score.\n"
 )
 
     if prompt in llmcache:
