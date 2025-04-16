@@ -30,27 +30,28 @@ def loadandpreprocess(uploadfile):
     return lines
 
 def simplifytext(text, client, patientcontext=None):
-     prompt = (
+    prompt = (
         f"Patient Context:\n{patientcontext}\n\n"
         f"Medical Instructions:\n{text}\n\n"
         "Use simple, clear language that someone with limited medical knowledge can easily understand.\n\n"
-        "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to discharge instructions structure. "
-        "Retain all essential details and full summary while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
+        "Convert the following discharge instructions into plain, patient-friendly language, ensuring accuracy with respect to the MTSamples discharge summary. "
+        "Retain all essential details while reformulating the text so that it achieves a Flesch Reading Ease score between 80 and 90. Dont output Flesch Reading Ease score check "
+        "final simplified text should be focused on list of tasks, follow-ups, and their importance from the discharge instructions."
     )
-        if prompt in llmcache:
-            return llmcache[prompt]
-        try:
-            response = client.chat.completions.create(
-                model="openrouter/auto",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0,
-                top_p=1
-            )
-            result = response.choices[0].message.content
-            llmcache[prompt] = result
-            return result
-        except Exception as e:
-            return f"[OpenRouter Error] {e}"
+    if prompt in llmcache:
+        return llmcache[prompt]
+    try:
+        response = client.chat.completions.create(
+            model="openrouter/auto",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            top_p=1
+        )
+        result = response.choices[0].message.content
+        llmcache[prompt] = result
+        return result
+    except Exception as e:
+        return f"[OpenRouter Error] {e}"
 
 def evaluatereadability(simplifiedtext):
     return textstat.flesch_reading_ease(simplifiedtext)
