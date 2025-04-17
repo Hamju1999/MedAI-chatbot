@@ -266,8 +266,7 @@ class MedAI:
 
     def searchmedical(self, query: str, num_results: int = 5) -> list:
         medicalquery = (
-            f"{query} site:pubmed.ncbi.nlm.nih.gov, site:medlineplus.gov, "
-            "site:cdc.gov, site:mayoclinic.org, site:nih.gov"
+            f"{query} site:pubmed.ncbi.nlm.nih.gov"
         )
         try:
             return list(islice(GoogleSearch(medicalquery), num_results))
