@@ -102,7 +102,7 @@ def summarize_discharge(text: str, reading_lvl: int, lang: str) -> dict:
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "openai/gpt-3.5-turbo",
+        "model": "deepseek/deepseek-r1",
         "messages": [{"role": "user", "content": prompt}]
     }
     resp = requests.post(url, headers=headers, json=payload)
