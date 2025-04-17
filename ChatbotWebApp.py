@@ -1,139 +1,147 @@
-import os
-import re
-import PyPDF2
-import textstat
+# Import necessary libraries
 import streamlit as st
-from openai import OpenAI
+import requests
+import os
+try:
+    import textstat
+except ImportError:
+    textstat = None
 
-llmcache = {}
+# --- UI Initialization & Setup ---
+st.set_page_config(page_title="Discharge Summary Simplifier", layout="wide")
+st.title("Discharge Summary Simplifier")
+st.subheader("Transforming Patient Understanding with AI")
+st.write("Upload a hospital discharge summary and let the AI simplify it into clear instructions.")
 
-def loadandpreprocess(uploadfile):
-    _, ext = os.path.splitext(uploadfile.name)
-    text = ""
-    if ext.lower() == ".pdf":
+# --- API Key Input ---
+api_key = os.getenv("OPENROUTER_API_KEY")
+if not api_key:
+    api_key = st.text_input("Enter your OpenRouter API Key", type="password", help="Needed to call the LLM API for summarization.")
+    if not api_key:
+        st.info("Please enter your OpenRouter API key to use the summarization service.")
+        st.stop()
+
+# --- File Upload ---
+uploaded_file = st.file_uploader("Upload Discharge Summary (text or PDF)", type=["txt", "pdf"], help="Upload the patient's discharge instructions in TXT or PDF format.")
+if not uploaded_file:
+    st.stop()
+
+# --- Summarization Options ---
+col1, col2 = st.columns(2)
+with col1:
+    reading_level = st.slider("Target Reading Level (Grade)", min_value=3, max_value=12, value=6, help="The grade level for the simplified text (lower means simpler).")
+with col2:
+    language = st.selectbox("Output Language", ["English", "Spanish", "Chinese", "French", "German"], index=0, help="Language for the simplified instructions.")
+
+# --- File Reading & Extraction ---
+def extract_text_from_file(file):
+    text_content = ""
+    if file.type == "application/pdf":
         try:
-            reader = PyPDF2.PdfReader(uploadfile)
-            text = "".join(page.extract_text() or "" for page in reader.pages)
-        except Exception as e:
-            st.error(f"Error reading PDF: {e}")
-    elif ext.lower() == ".txt":
+            from PyPDF2 import PdfReader
+        except ImportError:
+            st.error("PyPDF2 is required for PDF support. Please install it.")
+            return ""
         try:
-            text = uploadfile.read().decode("utf-8")
+            pdf_reader = PdfReader(file)
         except Exception as e:
-            st.error(f"Error reading TXT file: {e}")
+            file.seek(0)
+            import io
+            pdf_reader = PdfReader(io.BytesIO(file.read()))
+        for page in pdf_reader.pages:
+            text_content += page.extract_text() + "\n"
     else:
-        st.error("Unsupported file format. Please upload a PDF or TXT file.")
-    lines = [
-        re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
-        for line in text.splitlines() if line.strip()
-    ]
-    return lines
-def simplifytext(text, client, patientcontext=None):
+        bytes_data = file.read()
+        try:
+            text_content = bytes_data.decode("utf-8")
+        except:
+            text_content = bytes_data.decode("latin-1")
+    return text_content
+
+# Extract text from the uploaded file
+discharge_text = extract_text_from_file(uploaded_file)
+if not discharge_text.strip():
+    st.error("Unable to read content from the file. Please upload a valid text or PDF file.")
+    st.stop()
+
+# --- LLM Summarization (OpenRouter API) ---
+def summarize_discharge(text, reading_lvl=6, lang="English"):
     prompt = (
-        f"Patient Context:\n{patientcontext}\n\n"
-        f"Medical Instructions:\n{text}\n\n"
-        f"""
-            You are a medical communication assistant.
-            
-            Your task is to convert the following original discharge instructions into a structured output that includes:
-            
-            ---
-            
-            1. **Simplified Version**  
-            Use plain, grade 6 level language to explain the discharge instructions clearly. Break down medical terms into simpler words (with definitions in parentheses if needed). Keep it friendly, accurate, and easy to understand by someone without medical training.
-            
-            2. **Medical Summary**  
-            Present a structured summary using bullet points, including:  
-            - Diagnosis  
-            - Treatment Provided  
-            - Outcome  
-            - Recommendations  
-            
-            Use precise clinical language suitable for electronic health record (EHR) integration.
-            
-            3. **Task/Follow-Up Extraction**  
-            Create a bullet list of actionable follow-up items. For each task, include:  
-            - Task description  
-            - Importance (Critical, Important, or Optional)  
-            - Dependency (any prerequisite condition or status)
-            
-            ---
-            
-            **Format your output in this exact structure**:
-            
-            Simplified Version  
-            [Write here]
-            
-            Medical Summary  
-            Diagnosis: [...]  
-            Treatment Provided: [...]  
-            Outcome: [...]  
-            Recommendations: [...]
-            
-            Task/Follow-Up Extraction  
-            [Task 1] – Importance: [...]. Dependency: [...]  
-            [Task 2] – Importance: [...]. Dependency: [...]  
-            [Task 3] – Importance: [...]. Dependency: [...]
-            
-            ---
-            
-            Only use the information provided in the original discharge instructions. Do not invent or add new information. Maintain full clinical accuracy while maximizing patient comprehension.
-            
-            Original Discharge Instructions:  
-            {text}
-            """
+        f"The following is a hospital discharge summary for a patient.\n"
+        f"Your task is to simplify these discharge instructions so that a patient at a {reading_lvl}th-grade reading level can understand them. "
+        f"Present the information in the patient's preferred language: {lang}. "
+        f"Break down the content into the following sections with clear headings:\n"
+        f"**Simplified Instructions:** A bullet-point list of the key instructions the patient needs to follow in simple language.\n"
+        f"**Importance:** A brief explanation of how important or critical each item is.\n"
+        f"**Follow-Up Appointments or Tasks:** List any follow-up appointments or tasks the patient needs to do.\n"
+        f"**Medications:** List any medications the patient needs to take, with simplified instructions if available.\n"
+        f"**Precautions:** Any precautions or warning signs the patient should be aware of (e.g., symptoms to watch for, activities to avoid).\n"
+        f"**References:** Brief reasons or explanations for the above instructions (why each instruction or medication is important).\n\n"
+        f"Please output each section clearly. Use simple language and short sentences.\n"
+        f"Now, simplify the following discharge summary:\n\"\"\"{text}\"\"\""
     )
-    if prompt in llmcache:
-        return llmcache[prompt]
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "openai/gpt-3.5-turbo",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
     try:
-        response = client.chat.completions.create(
-            model="openrouter/auto",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            top_p=1
-        )
-        result = response.choices[0].message.content
-        llmcache[prompt] = result
-        return result
+        response = requests.post(url, headers=headers, json=data)
     except Exception as e:
-        return f"[OpenRouter Error] {e}"
-def evaluatereadability(simplifiedtext):
-    return textstat.flesch_reading_ease(simplifiedtext)
+        st.error(f"Failed to connect to the OpenRouter API: {e}")
+        return None
+    if response.status_code != 200:
+        st.error(f"OpenRouter API error: {response.status_code} - {response.text}")
+        return None
+    result = response.json()
+    simplified_output = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+    return simplified_output
 
-st.title("Discharge Instruction Simplifier")
-uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
-if not uploadfile:
-    st.stop()
-lines = loadandpreprocess(uploadfile)
-if not lines:
-    st.warning("No valid data found in the file.")
-    st.stop()
-original_text = " ".join(lines)
-with st.spinner("Initializing OpenRouter client..."):
-    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
-with st.spinner("Simplifying text without context..."):
-    simplified_no_context = simplifytext(original_text, client, patientcontext=None)
-    st.subheader("Original Discharge Instructions")
-    for paragraph in lines:
-        st.write(paragraph)
-        st.write("") 
-    patient_context_input = st.text_input("Enter patient context (optional):")
-    if st.button("Simplify with Patient Context"):
-        with st.spinner("Re-simplifying with clinician's context..."):
-            simplified_with_context = simplifytext(
-                original_text,
-                client,
-                patientcontext=patient_context_input
-            )
-        st.subheader("Simplified Text (With Context)")
-        st.write(simplified_with_context)
-        context_score = evaluatereadability(simplified_with_context)
-        st.subheader("Readability Score (Flesch Reading Ease)")
-        st.write(context_score)
-    else:
-        st.info("No context applied yet. Above is the default ‘no context’ simplified text.")
-        st.subheader("Current Simplified Text (No Context)")
-        st.write(simplified_no_context)
-        no_context_score = evaluatereadability(simplified_no_context)
-        st.subheader("Readability Score (Flesch Reading Ease)")
-        st.write(no_context_score)
+# --- Generate Summary and Display ---
+if st.button("Simplify Discharge Instructions"):
+    with st.spinner("Summarizing the discharge instructions..."):
+        simplified_text = summarize_discharge(discharge_text, reading_level, language)
+    if simplified_text:
+        st.success("Discharge instructions simplified successfully!")
+        sections = {
+            "Simplified Instructions": "",
+            "Importance": "",
+            "Follow-Up Appointments or Tasks": "",
+            "Medications": "",
+            "Precautions": "",
+            "References": ""
+        }
+        current_section = None
+        for line in simplified_text.splitlines():
+            if not line.strip():
+                continue
+            header_line = line.strip().strip(":").lower()
+            if header_line in [key.lower() for key in sections.keys()]:
+                for key in sections.keys():
+                    if header_line == key.lower():
+                        current_section = key
+                        sections[current_section] = ""
+                        break
+            else:
+                if current_section:
+                    if sections[current_section] and not line.startswith(('-', '*', '•')):
+                        sections[current_section] += "\n"
+                    sections[current_section] += line + "\n"
+        for section, content in sections.items():
+            if content:
+                st.subheader(section)
+                st.markdown(content.strip())
+        st.markdown("---")
+        st.subheader("Readability Score")
+        if textstat:
+            score = textstat.flesch_kincaid_grade(simplified_text)
+            st.write(f"Flesch-Kincaid Grade Level: **{score:.1f}**")
+        else:
+            st.write("Install the `textstat` library to calculate readability scores.")
+        st.caption("*(The Flesch-Kincaid Grade Level estimates the U.S. school grade required to understand the text.)*")
