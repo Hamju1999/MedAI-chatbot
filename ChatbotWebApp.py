@@ -28,34 +28,66 @@ def loadandpreprocess(uploadfile):
         for line in text.splitlines() if line.strip()
     ]
     return lines
-
 def simplifytext(text, client, patientcontext=None):
-    # Build a two‑part prompt: (1) simplified summary, (2) follow‑up task extraction
-    sections = [
-        "You are a clinical summarization assistant. Perform these two tasks on the text below:\n",
-        "1. **Simplified Summary**:\n   - Combine Diagnosis, Treatment, Outcome, and Recommendations into a single coherent paragraph in plain English.\n",
-        "2. **Follow‑Up Task List**:\n"
-        "   - Extract each actionable follow‑up (e.g., 'continue home exercises', 'follow up with primary doctor').\n"
-        "   - For each, assign an 'Importance' (e.g., Critical, Important) and any 'Dependency' (e.g., 'after discharge').\n"
-    ]
-    
-    # Include patient context if available
-    if patientcontext:
-        sections.append(f"**Patient Context (optional):**\n{patientcontext}\n")
-    
-    # Finally, the original instructions
-    sections.append(f"**Original Instructions:**\n{text}")
-    
-    prompt = "\n".join(sections)
-    
-    # Check cache
+    prompt = (
+        f"Patient Context:\n{patientcontext}\n\n"
+        f"Medical Instructions:\n{text}\n\n"
+        f"""
+            You are a medical communication assistant.
+            
+            Your task is to convert the following original discharge instructions into a structured output that includes:
+            
+            ---
+            
+            1. **Simplified Version**  
+            Use plain, grade 6 level language to explain the discharge instructions clearly. Break down medical terms into simpler words (with definitions in parentheses if needed). Keep it friendly, accurate, and easy to understand by someone without medical training.
+            
+            2. **Medical Summary**  
+            Present a structured summary using bullet points, including:  
+            - Diagnosis  
+            - Treatment Provided  
+            - Outcome  
+            - Recommendations  
+            
+            Use precise clinical language suitable for electronic health record (EHR) integration.
+            
+            3. **Task/Follow-Up Extraction**  
+            Create a bullet list of actionable follow-up items. For each task, include:  
+            - Task description  
+            - Importance (Critical, Important, or Optional)  
+            - Dependency (any prerequisite condition or status)
+            
+            ---
+            
+            **Format your output in this exact structure**:
+            
+            Simplified Version  
+            [Write here]
+            
+            Medical Summary  
+            Diagnosis: [...]  
+            Treatment Provided: [...]  
+            Outcome: [...]  
+            Recommendations: [...]
+            
+            Task/Follow-Up Extraction  
+            [Task 1] – Importance: [...]. Dependency: [...]  
+            [Task 2] – Importance: [...]. Dependency: [...]  
+            [Task 3] – Importance: [...]. Dependency: [...]
+            
+            ---
+            
+            Only use the information provided in the original discharge instructions. Do not invent or add new information. Maintain full clinical accuracy while maximizing patient comprehension.
+            
+            Original Discharge Instructions:  
+            {text}
+            """
+    )
     if prompt in llmcache:
         return llmcache[prompt]
-    
-    # Call the model
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-4o-mini",
+            model="openrouter/auto",
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
             top_p=1
@@ -65,7 +97,6 @@ def simplifytext(text, client, patientcontext=None):
         return result
     except Exception as e:
         return f"[OpenRouter Error] {e}"
-
 def evaluatereadability(simplifiedtext):
     return textstat.flesch_reading_ease(simplifiedtext)
 
