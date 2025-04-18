@@ -35,6 +35,22 @@ uploaded_file = st.file_uploader(
 if not uploaded_file:
     st.stop()
 
+# --- Patient Context Feature ---
+# Initialize session state
+if "patient_context" not in st.session_state:
+    st.session_state["patient_context"] = ""
+
+# Input for context
+patient_context_input = st.text_input("Enter patient context (optional):")
+
+# Apply Context button
+if st.button("Apply Context", key="apply_context_btn"):
+    st.session_state["patient_context"] = patient_context_input
+    st.success("Patient context applied successfully.")
+
+# Retrieve current context
+current_context = st.session_state["patient_context"]
+
 # --- Options ---
 col1, col2 = st.columns(2)
 with col1:
@@ -77,14 +93,16 @@ def extract_text_from_file(file) -> str:
                 continue
         return ""
 
+# Extracting discharge text and validation
 discharge_text = extract_text_from_file(uploaded_file).strip()
 if not discharge_text:
     st.error("❌ Could not extract any text. Please upload a valid TXT or PDF.")
     st.stop()
 
-# --- LLM call ---
-def summarize_discharge(text: str, reading_lvl: int, lang: str) -> dict:
+# --- LLM call (with context) ---
+def summarize_discharge(text: str, reading_lvl: int, lang: str, patient_context: str) -> dict:
     prompt = (
+        f"Patient Context (if any): {patient_context}\n"
         f"The following is a hospital discharge summary.\n"
         f"Simplify it to a {reading_lvl}th-grade reading level in {lang}.\n"
         f"Break into sections with these headings:\n"
@@ -108,16 +126,15 @@ def summarize_discharge(text: str, reading_lvl: int, lang: str) -> dict:
     resp = requests.post(url, headers=headers, json=payload)
     return {
         "status": resp.status_code,
-        "raw_json": resp.json() if resp.headers.get("content-type","").startswith("application/json") else resp.text
+        "raw_json": resp.json() if resp.headers.get("content-type", "").startswith("application/json") else resp.text
     }
 
 # --- Main action ---
 if st.button("Simplify Discharge Instructions"):
-
     with st.spinner("🧠 Summarizing…"):
-        api_resp = summarize_discharge(discharge_text, reading_level, language)
+        api_resp = summarize_discharge(discharge_text, reading_level, language, current_context)
 
-    # show raw JSON
+    # show raw API response
     st.subheader("🔍 Raw API response")
     st.json(api_resp["raw_json"])
 
