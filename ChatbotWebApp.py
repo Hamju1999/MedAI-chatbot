@@ -282,13 +282,23 @@ class MedAI:
             "mayoclinic.org",
             "nnlm.gov",
         ]
-        site_query = " OR ".join(f"site:{d}" for d in domains)
-        medical_query = f"{query} ({site_query})"
-        try:
-            return list(islice(GoogleSearch(medical_query), num_results))
-        except Exception as e:
-            st.error(f"Error during medical search: {e}")
-            return []
+        all_results = []
+        for domain in domains:
+            single_query = f"{query} site:{domain}"
+            try:
+               # fetch up to num_results from this domain
+                results = list(islice(GoogleSearch(single_query), num_results))
+                all_results.extend(results)
+            except Exception as e:
+                st.error(f"Error searching {domain}: {e}")
+        # optional: dedupe while preserving order
+        seen = set()
+        deduped = []
+        for url in all_results:
+            if url not in seen:
+                seen.add(url)
+                deduped.append(url)
+        return deduped
 
     def fetchurl(self, url: str) -> str:
         if not url.startswith(("http://", "https://")):
@@ -509,7 +519,7 @@ if mode == "Chatbot":
                             st.error(f"Error checking URL {match['url']}: {e}")
                     if filtered_matches:
                         st.subheader("Verification Matches (Top results):")
-                        for idx, match in enumerate(filtered_matches[:10], 1):
+                        for idx, match in enumerate(filtered_matches, 1):
                             st.markdown(f"**Match {idx}:**")
                             st.write(f"Source URL: {match['url']}")
                             st.write(f"Similarity Score: {match['similarity']:.2f}")
