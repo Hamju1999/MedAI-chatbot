@@ -267,20 +267,20 @@ class MedAI:
     def searchmedical(self, query: str, num_results: int = 3) -> list:
         domains = [
             "pubmed.ncbi.nlm.nih.gov",
-            #"jamanetwork.com",
-            #"nejm.org",
+            "jamanetwork.com",
+            "nejm.org",
             "cdc.gov",
-            #"who.int",
-            #"medscape.com",
-            #"clinicaltrials.gov",
-            #"nice.org.uk",
-            #"acog.org",
-            #"nih.gov",
-            #"usa.gov",
-            #"medlineplus.gov",
-            #"odphp.health.gov",
+            "who.int",
+            "medscape.com",
+            "clinicaltrials.gov",
+            "nice.org.uk",
+            "acog.org",
+            "nih.gov",
+            "usa.gov",
+            "medlineplus.gov",
+            "odphp.health.gov",
             "mayoclinic.org",
-            #"nnlm.gov",
+            "nnlm.gov",
         ]
         all_results = []
         for domain in domains:
