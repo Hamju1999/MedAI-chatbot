@@ -286,7 +286,7 @@ class MedAI:
         for domain in domains:
             single_query = f"{query} site:{domain}"
             try:
-               # fetch up to num_results from this domain
+                # fetch up to num_results from this domain
                 results = list(islice(GoogleSearch(single_query), num_results))
                 all_results.extend(results)
             except Exception as e:
