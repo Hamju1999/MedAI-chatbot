@@ -313,20 +313,27 @@ if st.button("Simplify Discharge Instructions"):
 
     # 2) QR Code for Sharing
     st.markdown("---")
+    # Automatically generate a shareable data URL for the summary
+    summary_html = "<html><body><pre style='font-size:14px;'>" + \
+        simplified_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") + \
+        "</pre></body></html>"
+    b64 = base64.b64encode(summary_html.encode('utf-8')).decode('utf-8')
+    share_url = f"data:text/html;base64,{b64}"
+    # Show the share URL (users can copy it)
+    st.text_area("Share this summary URL:", share_url, height=100)
+    
     if qrcode:
-        summary_url = st.text_input("Enter summary URL for sharing:")
-        if summary_url:
-            qr_img = qrcode.make(summary_url)
-            buf = io.BytesIO()
-            qr_img.save(buf, format="PNG")
-            buf.seek(0)
-            st.image(buf, caption="Scan to open your summary", use_column_width=False)
-            st.download_button(
-                "📥 Download QR Code",
-                data=buf,
-                file_name="summary_qr.png",
-                mime="image/png"
-            )
+        qr_img = qrcode.make(share_url)
+        buf = io.BytesIO()
+        qr_img.save(buf, format="PNG")
+        buf.seek(0)
+        st.image(buf, caption="Scan to open your summary", use_column_width=False)
+        st.download_button(
+            "📥 Download QR Code",
+            data=buf,
+            file_name="summary_qr.png",
+            mime="image/png"
+        )
     else:
         st.info("QR code generation requires the `qrcode` package.")
 
