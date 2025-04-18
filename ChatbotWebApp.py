@@ -300,8 +300,7 @@ class MedAI:
             if url not in seen:
                 seen.add(url)
                 deduped.append(url)
-
-        return dedupedd
+        return deduped
 
     def fetchurl(self, url: str) -> str:
         if not url.startswith(("http://", "https://")):
