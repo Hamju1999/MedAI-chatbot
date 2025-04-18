@@ -256,24 +256,29 @@ if st.button("Simplify Discharge Instructions"):
     # Parsed Sections & Actions
     st.markdown("---")
     st.subheader("🔀 Parsed Sections & Actions")
-    icons = {"Simplified Instructions":"📝","Importance":"💡","Follow-Up Appointments or Tasks":"📅",
-             "Medications":"💊","Precautions":"⚠️","References":"📚"}
+    icons = {
+        "Simplified Instructions": "📝",
+        "Importance": "💡",
+        "Follow-Up Appointments or Tasks": "📅",
+        "Medications": "💊",
+        "Precautions": "⚠️",
+        "References": "📚"
+    }
     for sec, lines in sections.items():
-        if not lines: continue
-        st.markdown(f"**{icons.get(sec,"")} {sec}**")
+        if not lines:
+            continue
+        st.markdown(f"**{icons.get(sec, '')} {sec}**")
         for line in lines:
             st.markdown(apply_tooltips(line), unsafe_allow_html=True)
-        # follow-up calendar
         if sec == "Follow-Up Appointments or Tasks":
             for fu in lines:
                 ics = generate_ics(fu)
                 st.download_button(f"📅 Add '{fu}' to Calendar", data=ics, file_name="event.ics", mime="text/calendar")
-        # medication checklist & reminders
         if sec == "Medications":
             st.subheader("Medication Checklist & Reminders")
             for med in lines:
                 st.checkbox(med, key=med)
-            if st.button("Schedule Med Reminders"):
+            if st.button("Schedule Med Reminders", key="med_reminders_btn"):
                 st.success("Medication reminders scheduled!")
 
     # Symptom Tracker
