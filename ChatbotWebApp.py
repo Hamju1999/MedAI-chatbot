@@ -7,8 +7,8 @@ import textwrap
 import re
 import textstat
 import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor
 import streamlit as st
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from google import genai
@@ -282,23 +282,26 @@ class MedAI:
             "mayoclinic.org",
             "nnlm.gov",
         ]
-        all_results = []
-        for domain in domains:
-            single_query = f"{query} site:{domain}"
+        def fetch_for(domain):
+            q = f"{query} site:{domain}"
             try:
-                # fetch up to num_results from this domain
-                results = list(islice(GoogleSearch(single_query), num_results))
-                all_results.extend(results)
+                return list(islice(GoogleSearch(q), num_results))
             except Exception as e:
                 st.error(f"Error searching {domain}: {e}")
-        # optional: dedupe while preserving order
+                return []
+        all_urls = []
+        with ThreadPoolExecutor(max_workers=5) as exe:
+            futures = {exe.submit(fetch_for, d): d for d in domains}
+            for fut in as_completed(futures):
+                all_urls.extend(fut.result())
         seen = set()
         deduped = []
-        for url in all_results:
+        for url in all_urls:
             if url not in seen:
                 seen.add(url)
                 deduped.append(url)
-        return deduped
+
+        return dedupedd
 
     def fetchurl(self, url: str) -> str:
         if not url.startswith(("http://", "https://")):
