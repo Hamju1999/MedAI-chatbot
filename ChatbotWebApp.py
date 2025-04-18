@@ -264,12 +264,28 @@ class MedAI:
     def refine(self, answer: str) -> str:
         return self.gemrefine(answer)
 
-    def searchmedical(self, query: str, num_results: int = 5) -> list:
-        medicalquery = (
-            f"{query} site:medlineplus.gov"
-        )
+   def search_medical(self, query: str, num_results: int = 5) -> list:
+        domains = [
+            "pubmed.ncbi.nlm.nih.gov",
+            "jamanetwork.com",
+            "nejm.org",
+            "cdc.gov",
+            "who.int",
+            "medscape.com",
+            "clinicaltrials.gov",
+            "nice.org.uk",
+            "acog.org",
+            "nih.gov",
+            "usa.gov",
+            "medlineplus.gov",
+            "odphp.health.gov",
+            "mayoclinic.org",
+            "nnlm.gov",
+        ]
+        site_query = " OR ".join(f"site:{d}" for d in domains)
+        medical_query = f"{query} ({site_query})"
         try:
-            return list(islice(GoogleSearch(medicalquery), num_results))
+            return list(islice(GoogleSearch(medical_query), num_results))
         except Exception as e:
             st.error(f"Error during medical search: {e}")
             return []
