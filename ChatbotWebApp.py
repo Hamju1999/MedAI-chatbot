@@ -264,7 +264,7 @@ class MedAI:
     def refine(self, answer: str) -> str:
         return self.gemrefine(answer)
 
-   def search_medical(self, query: str, num_results: int = 5) -> list:
+    def search_medical(self, query: str, num_results: int = 5) -> list:
         domains = [
             "pubmed.ncbi.nlm.nih.gov",
             "jamanetwork.com",
