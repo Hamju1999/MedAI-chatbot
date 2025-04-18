@@ -185,8 +185,7 @@ if st.button("Simplify Discharge Instructions"):
         simplified_text = choices[0].get("message", {}).get("content", "").strip() if choices else ""
         st.session_state["cached_summary"] = simplified_text
 
-        # parse sections
-        header_re = re.compile(r"^\*{0,2}(.+?)\*{0,2}:?$")
+        # parse sections with robust header detection
         sections = {
             "Simplified Instructions": [],
             "Importance": [],
@@ -197,14 +196,18 @@ if st.button("Simplify Discharge Instructions"):
         }
         current = None
         for line in simplified_text.splitlines():
-            m = header_re.match(line.strip())
-            if m and m.group(1).strip() in sections:
-                current = m.group(1).strip()
+            # remove markdown/list syntax to find headers
+            clean = re.sub(r"^[#\-*\s]+", "", line).strip().rstrip(":").strip()
+            if clean in sections:
+                current = clean
                 continue
-            if current:
-                sections[current].append(line)
+            if current and line.strip():
+                # strip leading bullets
+                text_line = re.sub(r"^[-*\s]+", "", line).strip()
+                sections[current].append(text_line)
         st.session_state["cached_sections"] = sections
 
+    # display summary
     st.markdown("---")
     st.subheader("📄 Formatted Simplified Summary")
     for line in simplified_text.splitlines():
@@ -212,30 +215,21 @@ if st.button("Simplify Discharge Instructions"):
 
     # PDF export
     if FPDF:
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        for line in simplified_text.splitlines():
-            pdf.cell(0, 10, txt=line, ln=1)
+        pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=12)
+        for line in simplified_text.splitlines(): pdf.cell(0, 10, txt=line, ln=1)
         pdf_bytes = pdf.output(dest="S").encode("latin-1")
         st.download_button("📥 Download PDF", pdf_bytes, file_name="summary.pdf", mime="application/pdf")
 
     # DOCX export
     if Document:
         doc = Document()
-        for line in simplified_text.splitlines():
-            doc.add_paragraph(line)
-        doc_io = io.BytesIO()
-        doc.save(doc_io)
-        doc_io.seek(0)
+        for line in simplified_text.splitlines(): doc.add_paragraph(line)
+        doc_io = io.BytesIO(); doc.save(doc_io); doc_io.seek(0)
         st.download_button("📥 Download DOCX", data=doc_io, file_name="summary.docx")
 
     # Text-to-speech
     if gTTS and st.button("▶️ Play Audio"):
-        tts = gTTS(simplified_text)
-        buf = io.BytesIO()
-        tts.write_to_fp(buf)
-        buf.seek(0)
+        tts = gTTS(simplified_text); buf = io.BytesIO(); tts.write_to_fp(buf); buf.seek(0)
         st.audio(buf.read(), format="audio/mp3")
 
     # Interactive Q&A
@@ -276,7 +270,7 @@ if st.button("Simplify Discharge Instructions"):
             continue
         st.markdown(f"**{icons.get(sec, '')} {sec}**")
         for line in lines:
-            st.markdown(apply_tooltips(line), unsafe_allow_html=True)
+            st.markdown(f"- {line}", unsafe_allow_html=True)
         if sec == "Follow-Up Appointments or Tasks":
             for fu in lines:
                 ics = generate_ics(fu)
