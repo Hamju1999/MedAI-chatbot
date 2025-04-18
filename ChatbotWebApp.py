@@ -264,7 +264,7 @@ class MedAI:
     def refine(self, answer: str) -> str:
         return self.gemrefine(answer)
 
-    def searchmedical(self, query: str, num_results: int = 5) -> list:
+    def searchmedical(self, query: str, num_results: int = 3) -> list:
         domains = [
             "pubmed.ncbi.nlm.nih.gov",
             "jamanetwork.com",
@@ -519,7 +519,7 @@ if mode == "Chatbot":
                             st.error(f"Error checking URL {match['url']}: {e}")
                     if filtered_matches:
                         st.subheader("Verification Matches (Top results):")
-                        for idx, match in enumerate(filtered_matches, 1):
+                        for idx, match in enumerate(filtered_matches[:10], 1):
                             st.markdown(f"**Match {idx}:**")
                             st.write(f"Source URL: {match['url']}")
                             st.write(f"Similarity Score: {match['similarity']:.2f}")
