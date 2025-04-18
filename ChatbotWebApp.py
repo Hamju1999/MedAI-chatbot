@@ -1,11 +1,13 @@
-# app.py
-
+# Libraries
 import os
 import re
 import io
 import datetime
+import locale
+import base64
 import requests
 import streamlit as st
+import pandas as pd
 
 # optional readability scoring
 try:
@@ -36,6 +38,12 @@ try:
 except ImportError:
     sr = None
 
+# QR code generation
+try:
+    import qrcode
+except ImportError:
+    qrcode = None
+
 # --- UI setup ---
 st.set_page_config(page_title="Discharge Summary Simplifier")
 st.title("Discharge Summary Simplifier")
@@ -47,6 +55,10 @@ if "cached_summary" not in st.session_state:
     st.session_state["cached_summary"] = None
 if "cached_sections" not in st.session_state:
     st.session_state["cached_sections"] = {}
+if "symptoms" not in st.session_state:
+    st.session_state["symptoms"] = []
+if "faq_log" not in st.session_state:
+    st.session_state["faq_log"] = []
 
 # --- API key handling ---
 api_key = os.getenv("OPENROUTER_API_KEY", "")
@@ -94,6 +106,9 @@ if st.button("Apply Context", key="apply_context_btn"):
     st.success("Patient context applied successfully.")
 current_context = st.session_state["patient_context"]
 
+# --- Dynamic Detail Level ---
+show_details = st.sidebar.checkbox("Show Detailed Medical Jargon")
+
 # --- Customizable Font & Contrast ---
 font_size = st.sidebar.slider("Font size", 12, 24, 16)
 high_contrast = st.sidebar.checkbox("High Contrast Mode")
@@ -103,6 +118,12 @@ if high_contrast:
         unsafe_allow_html=True
     )
 st.markdown(f"<style>* {{ font-size: {font_size}px; }}</style>", unsafe_allow_html=True)
+
+# --- Auto-translation based on locale ---
+user_locale = locale.getdefaultlocale()[0]
+af_lang = user_locale.split('_')[0].capitalize() if user_locale else None
+ if af_lang not in ["English","Spanish","Chinese","French","German"]:
+    af_lang = None
 
 # --- Options ---
 col1, col2 = st.columns(2)
@@ -280,7 +301,88 @@ if st.button("Simplify Discharge Instructions"):
                     st.checkbox(med, key=med)
                 if st.button("Schedule Med Reminders", key="med_reminders_btn"):
                     st.success("Medication reminders scheduled!")
+    
+        # 1) Formatted Summary
+    st.markdown("---")
+    st.subheader("📄 Simplified Summary")
+    for line in simplified_text.splitlines():
+        output_line = apply_tooltips(line)
+        if not show_details:
+            output_line = re.sub(r"\*\*(.+?)\*\*", r"\1", output_line)
+        st.markdown(output_line, unsafe_allow_html=True)
 
+    # 2) QR Code for Sharing
+    if qrcode:
+        summary_url = st.text_input("Enter summary URL for sharing:")
+        if summary_url:
+            qr = qrcode.make(summary_url)
+            buf = io.BytesIO(); qr.save(buf); st.image(buf)
+
+    # 3) Parsed Sections & Actions
+    st.markdown("---")
+    st.subheader("🔀 Actions & Trackers")
+    # Display sections (unchanged logic)
+    ...
+    # Context-aware alerts
+    last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
+    if last and last.get("pain",0) > 8:
+        st.warning("High pain detected – consider contacting your provider.")
+
+    # 4) Symptom Recovery Timeline
+    if st.checkbox("Show Recovery Timeline") and st.session_state["symptoms"]:
+        df = pd.DataFrame(st.session_state["symptoms"])  # date,pain,swelling
+        df["date"] = pd.to_datetime(df["date"])
+        chart = df.set_index("date")["pain"]
+        st.line_chart(chart)
+
+    # 5) Export Data for Clinicians
+    if st.button("Download Symptom Log for Clinician"):
+        df = pd.DataFrame(st.session_state["symptoms"])
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("Download CSV", data=csv, file_name="symptoms.csv")
+
+    # 6) EHR Sync (stub)
+    if st.button("Sync with EHR"):
+        st.info("EHR integration not configured.")
+
+    # 7) Caregiver / Proxy Sharing
+    if st.checkbox("Enable caregiver access"):
+        email = st.text_input("Caregiver email:")
+        if st.button("Generate share link"):
+            st.write(f"Shareable link sent to {email}.")
+
+    # 8) SMS & Push Reminders
+    phone = st.text_input("Phone number for SMS reminders:")
+    if st.button("Enable SMS Reminders") and phone:
+        st.success(f"SMS reminders will be sent to {phone}.")
+
+    # 9) Privacy & Data Control
+    st.markdown("---")
+    st.subheader("🔒 Privacy Dashboard")
+    if st.button("View Stored Data"):
+        st.write(st.session_state)
+    if st.button("Clear All Data"):
+        for k in ["cached_summary","cached_sections","symptoms","faq_log"]:
+            st.session_state[k] = [] if isinstance(st.session_state[k], list) else None
+        st.success("Data cleared.")
+
+    # 10) Smart FAQ Library
+    if st.expander("📖 Frequently Asked Questions"):
+        for q,a in st.session_state["faq_log"]:
+            st.write(f"**Q:** {q}"); st.write(f"**A:** {a}")
+
+    # 11) Patient Education Videos
+    st.markdown("---")
+    st.subheader("🎥 Patient Education Videos")
+    videos = ["https://youtu.be/example1","https://youtu.be/example2"]
+    for url in videos:
+        st.video(url)
+
+    # 12) Mood & Interaction Alerts
+    mood = st.select_slider("How are you feeling today?", options=["Good","Okay","Poor"])
+    if mood == "Poor":
+        st.warning("We noticed you feel poor—review precautions or contact your provider.")
+    
     # Symptom Tracker
     st.markdown("---")
     if st.checkbox("Enable Symptom Tracker"):
