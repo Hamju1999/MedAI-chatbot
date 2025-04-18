@@ -264,39 +264,29 @@ class MedAI:
     def refine(self, answer: str) -> str:
         return self.gemrefine(answer)
 
-    def searchmedical(self, query: str, num_results: int = 3) -> list:
+    def searchmedical(self, query: str, num_results: int = 1) -> list:
         domains = [
             "pubmed.ncbi.nlm.nih.gov",
-            "jamanetwork.com",
-            "nejm.org",
             "cdc.gov",
             "who.int",
             "medscape.com",
-            "clinicaltrials.gov",
             "nice.org.uk",
-            "acog.org",
             "nih.gov",
-            "usa.gov",
             "medlineplus.gov",
-            "odphp.health.gov",
             "mayoclinic.org",
             "nnlm.gov",
         ]
-        def fetch_for(domain):
-            q = f"{query} site:{domain}"
+        all_results = []
+        for domain in domains:
+            single_query = f"{query} site:{domain}"
             try:
-                return list(islice(GoogleSearch(q), num_results))
+                results = list(islice(GoogleSearch(single_query), num_results))
+                all_results.extend(results)
             except Exception as e:
                 st.error(f"Error searching {domain}: {e}")
-                return []
-        all_urls = []
-        with ThreadPoolExecutor(max_workers=5) as exe:
-            futures = {exe.submit(fetch_for, d): d for d in domains}
-            for fut in as_completed(futures):
-                all_urls.extend(fut.result())
         seen = set()
         deduped = []
-        for url in all_urls:
+        for url in all_results:
             if url not in seen:
                 seen.add(url)
                 deduped.append(url)
@@ -521,7 +511,7 @@ if mode == "Chatbot":
                             st.error(f"Error checking URL {match['url']}: {e}")
                     if filtered_matches:
                         st.subheader("Verification Matches (Top results):")
-                        for idx, match in enumerate(filtered_matches[:10], 1):
+                        for idx, match in enumerate(filtered_matches[:5], 1):
                             st.markdown(f"**Match {idx}:**")
                             st.write(f"Source URL: {match['url']}")
                             st.write(f"Similarity Score: {match['similarity']:.2f}")
