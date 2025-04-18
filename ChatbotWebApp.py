@@ -268,13 +268,13 @@ class MedAI:
         domains = [
             "pubmed.ncbi.nlm.nih.gov",
             "cdc.gov",
-            "who.int",
+            #"who.int",
             "medscape.com",
-            "nice.org.uk",
-            "nih.gov",
+            #"nice.org.uk",
+            #"nih.gov",
             "medlineplus.gov",
-            "mayoclinic.org",
-            "nnlm.gov",
+            #"mayoclinic.org",
+            #"nnlm.gov",
         ]
         all_results = []
         for domain in domains:
