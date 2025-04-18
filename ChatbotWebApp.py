@@ -312,17 +312,27 @@ if st.button("Simplify Discharge Instructions"):
         st.markdown(output_line, unsafe_allow_html=True)
 
     # 2) QR Code for Sharing
+    st.markdown("---")
     if qrcode:
         summary_url = st.text_input("Enter summary URL for sharing:")
         if summary_url:
-            qr = qrcode.make(summary_url)
-            buf = io.BytesIO(); qr.save(buf); st.image(buf)
+            qr_img = qrcode.make(summary_url)
+            buf = io.BytesIO()
+            qr_img.save(buf, format="PNG")
+            buf.seek(0)
+            st.image(buf, caption="Scan to open your summary", use_column_width=False)
+            st.download_button(
+                "📥 Download QR Code",
+                data=buf,
+                file_name="summary_qr.png",
+                mime="image/png"
+            )
+    else:
+        st.info("QR code generation requires the `qrcode` package.")
 
     # 3) Parsed Sections & Actions
     st.markdown("---")
     st.subheader("🔀 Actions & Trackers")
-    # Display sections (unchanged logic)
-    ...
     # Context-aware alerts
     last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
     if last and last.get("pain",0) > 8:
