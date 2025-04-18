@@ -122,7 +122,7 @@ st.markdown(f"<style>* {{ font-size: {font_size}px; }}</style>", unsafe_allow_ht
 # --- Auto-translation based on locale ---
 user_locale = locale.getdefaultlocale()[0]
 af_lang = user_locale.split('_')[0].capitalize() if user_locale else None
- if af_lang not in ["English","Spanish","Chinese","French","German"]:
+if af_lang not in ["English","Spanish","Chinese","French","German"]:
     af_lang = None
 
 # --- Options ---
@@ -302,7 +302,7 @@ if st.button("Simplify Discharge Instructions"):
                 if st.button("Schedule Med Reminders", key="med_reminders_btn"):
                     st.success("Medication reminders scheduled!")
     
-        # 1) Formatted Summary
+    # 1) Formatted Summary
     st.markdown("---")
     st.subheader("📄 Simplified Summary")
     for line in simplified_text.splitlines():
