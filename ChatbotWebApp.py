@@ -13,13 +13,11 @@ try:
 except ImportError:
     textstat = None
 
-# PDF export
+# PDF and Word export
 try:
     from fpdf import FPDF
 except ImportError:
     FPDF = None
-
-# Word export
 try:
     from docx import Document
 except ImportError:
@@ -62,9 +60,7 @@ else:
 
 # --- File uploader ---
 uploaded_file = st.file_uploader(
-    "Upload Discharge Summary (TXT or PDF)",
-    type=["txt", "pdf"],
-    help="Accepted formats: .txt or .pdf"
+    "Upload Discharge Summary (TXT or PDF)", type=["txt", "pdf"], help="Accepted formats: .txt or .pdf"
 )
 if not uploaded_file:
     st.stop()
@@ -72,10 +68,8 @@ if not uploaded_file:
 # --- Patient Context & Voice Input ---
 if "patient_context" not in st.session_state:
     st.session_state["patient_context"] = ""
-# Text context input
 patient_context_input = st.text_input("Enter patient context (optional):")
-# Voice context upload
-audio_file = st.file_uploader("Or upload voice note for context (mp3/wav)", type=["mp3","wav"],help="Optional: record additional context")
+audio_file = st.file_uploader("Or upload voice note for context (mp3/wav)", type=["mp3","wav"], help="Optional: record additional context")
 if audio_file and sr:
     r = sr.Recognizer()
     with sr.AudioFile(audio_file) as source:
@@ -88,7 +82,6 @@ if audio_file and sr:
         st.warning("Could not transcribe audio.")
 elif audio_file:
     st.info("`speech_recognition` not installed for transcription.")
-# Apply Context button
 if st.button("Apply Context", key="apply_context_btn"):
     st.session_state["patient_context"] = patient_context_input
     st.success("Patient context applied successfully.")
@@ -127,9 +120,11 @@ def extract_text_from_file(file) -> str:
         return text
     else:
         data = file.read()
-        for enc in ("utf-8","latin-1"): 
-            try: return data.decode(enc)
-            except: pass
+        for enc in ("utf-8","latin-1"):
+            try:
+                return data.decode(enc)
+            except:
+                pass
         return ""
 
 discharge_text = extract_text_from_file(uploaded_file).strip()
@@ -172,12 +167,11 @@ def summarize_discharge(text: str, reading_lvl: int, lang: str, patient_context:
 # --- Helper: Generate calendar ICS ---
 def generate_ics(event_title: str) -> str:
     dt = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
-    return ("BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\n" 
+    return ("BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\n"
             f"SUMMARY:{event_title}\nDTSTART:{dt}\nEND:VEVENT\nEND:VCALENDAR")
 
 # --- Main action ---
 if st.button("Simplify Discharge Instructions"):
-    # Use cache if offline
     if not api_key and st.session_state["cached_summary"]:
         simplified_text = st.session_state["cached_summary"]
         sections = st.session_state["cached_sections"]
@@ -188,21 +182,29 @@ if st.button("Simplify Discharge Instructions"):
             st.error(f"API returned status {api_resp['status']}")
             st.stop()
         choices = api_resp["raw_json"].get("choices", [])
-        simplified_text = choices[0].get("message",{}).get("content","\n").strip() if choices else ""
+        simplified_text = choices[0].get("message", {}).get("content", "").strip() if choices else ""
         st.session_state["cached_summary"] = simplified_text
+
         # parse sections
         header_re = re.compile(r"^\*{0,2}(.+?)\*{0,2}:?$")
-        sections = {"Simplified Instructions":[],"Importance":[],"Follow-Up Appointments or Tasks":[],
-                    "Medications":[],"Precautions":[],"References":[]}
+        sections = {
+            "Simplified Instructions": [],
+            "Importance": [],
+            "Follow-Up Appointments or Tasks": [],
+            "Medications": [],
+            "Precautions": [],
+            "References": []
+        }
         current = None
         for line in simplified_text.splitlines():
             m = header_re.match(line.strip())
             if m and m.group(1).strip() in sections:
-                current = m.group(1).strip(); continue
-            if current: sections[current].append(line)
+                current = m.group(1).strip()
+                continue
+            if current:
+                sections[current].append(line)
         st.session_state["cached_sections"] = sections
 
-    # Display summary
     st.markdown("---")
     st.subheader("📄 Formatted Simplified Summary")
     for line in simplified_text.splitlines():
@@ -210,40 +212,45 @@ if st.button("Simplify Discharge Instructions"):
 
     # PDF export
     if FPDF:
-        pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=12)
-        for line in simplified_text.splitlines(): pdf.cell(0,10,txt=line,ln=1)
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        for line in simplified_text.splitlines():
+            pdf.cell(0, 10, txt=line, ln=1)
         pdf_bytes = pdf.output(dest="S").encode("latin-1")
         st.download_button("📥 Download PDF", pdf_bytes, file_name="summary.pdf", mime="application/pdf")
 
     # DOCX export
     if Document:
         doc = Document()
-        for line in simplified_text.splitlines(): doc.add_paragraph(line)
+        for line in simplified_text.splitlines():
+            doc.add_paragraph(line)
         doc_io = io.BytesIO()
         doc.save(doc_io)
         doc_io.seek(0)
         st.download_button("📥 Download DOCX", data=doc_io, file_name="summary.docx")
 
     # Text-to-speech
-    if gTTS:
-        if st.button("▶️ Play Audio"):
-            tts = gTTS(simplified_text)
-            buf = io.BytesIO(); tts.write_to_fp(buf); buf.seek(0)
-            st.audio(buf.read(), format="audio/mp3")
+    if gTTS and st.button("▶️ Play Audio"):
+        tts = gTTS(simplified_text)
+        buf = io.BytesIO()
+        tts.write_to_fp(buf)
+        buf.seek(0)
+        st.audio(buf.read(), format="audio/mp3")
 
     # Interactive Q&A
     st.markdown("---")
     st.subheader("💬 Interactive Q&A")
     qa = st.text_input("Ask a question about your summary:")
-    if st.button("Ask Question"):
+    if st.button("Ask Question", key="qa_btn"):
         with st.spinner("🗣 Answering…"):
             qa_prompt = f"{simplified_text}\n\nPatient Q&A: {qa}"
             resp = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization":f"Bearer {api_key}","Content-Type":"application/json"},
-                json={"model":"deepseek/deepseek-r1","messages":[{"role":"user","content":qa_prompt}]}
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": "deepseek/deepseek-r1", "messages": [{"role": "user", "content": qa_prompt}]}
             )
-            answer = resp.json().get("choices",[])[0].get("message",{}).get("content","" )
+            answer = resp.json().get("choices", [])[0].get("message", {}).get("content", "")
         st.write(answer)
 
     # Readability
