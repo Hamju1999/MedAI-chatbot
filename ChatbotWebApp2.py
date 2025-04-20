@@ -301,15 +301,6 @@ if st.button("Simplify Discharge Instructions"):
                     st.checkbox(med, key=med)
                 if st.button("Schedule Med Reminders", key="med_reminders_btn"):
                     st.success("Medication reminders scheduled!")
-    
-    # 1) Formatted Summary
-    st.markdown("---")
-    st.subheader("📄 Simplified Summary")
-    for line in simplified_text.splitlines():
-        output_line = apply_tooltips(line)
-        if not show_details:
-            output_line = re.sub(r"\*\*(.+?)\*\*", r"\1", output_line)
-        st.markdown(output_line, unsafe_allow_html=True)
 
     # 2) QR Code for Sharing
     st.markdown("---")
@@ -439,13 +430,3 @@ if st.button("Simplify Discharge Instructions"):
     links = {"Mayo Clinic":"https://www.mayoclinic.org","NIH":"https://www.nih.gov"}
     for name, url in links.items():
         st.markdown(f"- [{name}]({url})")
-
-    # Quick quiz
-    st.markdown("---")
-    st.subheader("🧠 Quick Quiz")
-    ans1 = st.radio("What day is your follow-up?", ["Monday","Tuesday","Other"])
-    ans2 = st.radio("How often do you take your meds?", ["Once a day","Twice a day"])
-    ans3 = st.radio("Do you know warning signs to watch for?", ["Yes","No"])
-    if st.button("Submit Quiz"):
-        st.info(f"Your answers: {ans1}, {ans2}, {ans3}")
-        st.success("Quiz submitted.")
