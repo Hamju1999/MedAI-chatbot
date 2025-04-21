@@ -71,35 +71,6 @@ def extract_text_from_file(file) -> str:
                 pass
         return ""
 
-# --- Email helper ---
-def send_email(to: str, subject: str, body: str):
-    host = os.getenv("SMTP_EMAIL_HOST")
-    port = int(os.getenv("SMTP_EMAIL_PORT", 587))
-    user = os.getenv("SMTP_EMAIL_USER")
-    pw   = os.getenv("SMTP_EMAIL_PASS")
-    if not smtplib or not all([host,port,user,pw]):
-        raise RuntimeError("SMTP not configured")
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"]    = user
-    msg["To"]      = to
-    msg.set_content(body)
-    with smtplib.SMTP(host, port) as s:
-        s.starttls()
-        s.login(user, pw)
-        s.send_message(msg)
-
-# --- SMS helper ---
-def send_sms(to: str, body: str):
-    sid  = os.getenv("TWILIO_ACCOUNT_SID")
-    tok  = os.getenv("TWILIO_AUTH_TOKEN")
-    frm  = os.getenv("TWILIO_PHONE_NUMBER")
-    if not TwilioClient or not all([sid,tok,frm]):
-        raise RuntimeError("Twilio not configured")
-    client = TwilioClient(sid, tok)
-    msg = client.messages.create(body=body, from_=frm, to=to)
-    return msg.sid
-
 # --- UI setup ---
 st.set_page_config(page_title="Discharge Summary Simplifier")
 st.title("Discharge Summary Simplifier")
@@ -367,23 +338,26 @@ if st.session_state["run_summary"]:
         email = st.text_input("Caregiver email:", key="caregiver_email")
         if email and st.button("Generate share link", key="gen_share"):
             link = f"https://yourapp.example.com/share?email={email}"
-            try:
-                send_email(email, "Caregiver Access Link", f"Here is the link: {link}")
-                st.success(f"Link emailed to {email}")
-            except Exception as e:
-                st.error(f"Email failed: {e}")
+            # this opens the user's default mail client with subject/body pre‑filled
+            mailto = (
+                f"mailto:{email}"
+                f"?subject={requests.utils.quote('Caregiver Access Link')}"
+                f"&body={requests.utils.quote('Here is your link: ' + link)}"
+            )
+            st.markdown(f"[Click here to email the link]({mailto})")
 
     # Send Feedback
     st.markdown("---")
     st.subheader("Send Feedback to Provider")
     fb = st.text_area("Your message", key="feedback_msg")
     if st.button("Send Message", key="send_feedback"):
-        try:
-            send_email("hamzapiracha@live.com", "Patient Feedback", fb)
-            st.session_state["faq_log"].append(fb)
-            st.success("Feedback emailed to provider")
-        except Exception as e:
-            st.error(f"Feedback failed: {e}")
+        fb = st.session_state["feedback_msg"]
+        mailto_fb = (
+            f"mailto:hamzapiracha@live.com"
+            f"?subject={requests.utils.quote('Patient Feedback')}"
+            f"&body={requests.utils.quote(fb)}"
+        )
+        st.markdown(f"[Click here to send feedback]({mailto_fb})")
 
     # Privacy Dashboard
     st.markdown("---")
