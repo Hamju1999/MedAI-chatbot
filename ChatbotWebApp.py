@@ -131,7 +131,7 @@ else:
     st.stop()
 
 # --- Sidebar & options ---
-show_details = st.sidebar.checkbox("")
+show_details = st.sidebar.checkbox("SideBar")
 font_size = st.sidebar.slider("Font size", 12,24,16)
 high_contrast = st.sidebar.checkbox("High Contrast Mode")
 if high_contrast:
