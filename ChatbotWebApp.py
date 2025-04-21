@@ -83,6 +83,9 @@ if not pasted_text and not uploaded_file:
     st.info("Please paste text above or upload a file below.")
     st.stop()
 
+st.markdown("Original Text")
+    st.write(discharge_text)  
+
 # --- Patient Context & Voice Input ---
 #if "patient_context" not in st.session_state:
     #st.session_state["patient_context"] = ""
@@ -171,9 +174,6 @@ if uploaded_file:
     discharge_text = extract_text_from_file(uploaded_file).strip()
 else:
     discharge_text = pasted_text.strip()
-
-st.markdown("Original Text")
-st.code(discharge_text)
 
 # --- Glossary for tooltips ---
 glossary = {
