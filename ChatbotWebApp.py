@@ -218,7 +218,7 @@ def generate_concise_summary(text:str, lang:str)->dict:
 
 def summarize_discharge(text:str, lvl:int, lang:str)->dict:
     prompt = (
-        f"The following is a hospital discharge summary. Simplify it to a {reading_lvl}th-grade reading level in {lang}.\n"
+        f"The following is a hospital discharge summary. Simplify it to a {lvl}th-grade reading level in {lang}.\n"
         "Break into sections with these headings:\n"
         "- **Simplified Instructions:** bullet-points\n"
         "- **Importance:** why each instruction matters\n"
