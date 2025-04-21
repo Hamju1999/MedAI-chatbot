@@ -312,30 +312,29 @@ if st.session_state["run_summary"]:
     for ln in concise.splitlines():
         st.markdown(apply_tooltips(ln), unsafe_allow_html=True)
 
-    # Categorization & Actions
+    # --- Categorization & Actions ---
     st.markdown("---")
     st.subheader("Categorization & Actions")
-
-    # 1) Render each section, cleanly
+    
     for raw_header, items in sections.items():
         if not items:
             continue
-
-        # clean header text (strip colons & stars)
-        header_clean = re.sub(r"[:\*]+$", "", raw_header).strip()
+    
+        # Remove all '*' from header, then trim whitespace and trailing colons
+        header_clean = raw_header.replace("*", "").rstrip(":").strip()
         st.markdown(f"**{header_clean}**")
-
-        # render each bullet
+    
         for raw in items:
-            # strip any leading bullets/spaces
+            # 1) strip any leading bullets/spaces
             text = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-            # strip trailing colons & stars
-            text = re.sub(r'[:\*]+$', '', text).strip()
-            # remove any leading "Task:" if present
-            text = re.sub(r'^(Task:?\**)\s*', '', text, flags=re.IGNORECASE)
+            # 2) remove all '*' anywhere
+            text = text.replace("*", "")
+            # 3) strip leading/trailing colons and whitespace
+            text = text.strip().strip(":")
+    
             st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
-
-            # follow‑up calendar button if this is a visit
+    
+            # Calendar button only for Follow‑Up items mentioning "visit"
             if header_clean == "Follow-Up Appointments or Tasks" and "visit" in text.lower():
                 ics = generate_ics(text)
                 st.download_button(
