@@ -58,7 +58,7 @@ def extract_text_from_file(file) -> str:
         return text
     else:
         data = file.read()
-        for enc in ("utf-8","latin-1"): 
+        for enc in ("utf-8", "latin-1"):
             try:
                 return data.decode(enc)
             except:
@@ -79,7 +79,7 @@ if "cached_sections" not in st.session_state:
 if "cached_concise" not in st.session_state:
     st.session_state["cached_concise"] = None
 if "run_summary" not in st.session_state:
-    st.session_state["run_summary"] = False   # ← new flag
+    st.session_state["run_summary"] = False
 if "symptoms" not in st.session_state:
     st.session_state["symptoms"] = []
 if "faq_log" not in st.session_state:
@@ -96,31 +96,28 @@ else:
         st.info("Please provide your OpenRouter API key.")
         st.stop()
 
-# --- Input mode selector (replaces your previous text_area + file_uploader + audio_file) ---
+# --- Input mode selector ---
 mode = st.radio(
     "How would you like to provide the discharge text?",
     ("Enter text", "Upload file", "Voice note"),
     horizontal=True
 )
 
-# initialize discharge_text if not already in session
 if "discharge_text" not in st.session_state:
     st.session_state["discharge_text"] = ""
 
 # 1) Manual entry
 if mode == "Enter text":
-    # dynamic height based on existing text
-    current = st.session_state.get("discharge_text", "")
+    current = st.session_state["discharge_text"]
     line_count = current.count("\n") + 1
-    min_h, max_h = 200, 800
-    height_px = min(max(line_count * 25, min_h), max_h)
-
+    height_px = min(max(line_count * 25, 200), 800)
     discharge_text = st.text_area(
         "Discharge Instructions Text:",
         height=height_px,
         help="Paste or type your instructions here; updates immediately",
         key="discharge_text"
     )
+
 # 2) File upload
 elif mode == "Upload file":
     uploaded_file = st.file_uploader(
@@ -134,17 +131,13 @@ elif mode == "Upload file":
             st.error("Could not extract any text. Please upload a valid file.")
         else:
             st.session_state["discharge_text"] = extracted
-    discharge_text = st.session_state.get("discharge_text", "")
+    discharge_text = st.session_state["discharge_text"]
 
-# --- Patient Context & Voice Input ---
-#if "patient_context" not in st.session_state:
-    #st.session_state["patient_context"] = ""
-#patient_context_input = st.text_input("Enter patient context (optional):")
 # 3) Voice note
-else:  # mode == "Voice note"
+else:
     audio_file = st.file_uploader(
         "Or upload voice note for context (mp3/wav)",
-        type=["mp3","wav"],
+        type=["mp3", "wav"],
         help="Optional: record additional context"
     )
     if audio_file and sr:
@@ -159,15 +152,12 @@ else:  # mode == "Voice note"
             st.warning("Could not transcribe audio.")
     elif audio_file:
         st.info("`speech_recognition` not installed for transcription.")
-    discharge_text = st.session_state.get("discharge_text", "")
-#if st.button("Apply Context", key="apply_context_btn"):
-    #st.session_state["patient_context"] = patient_context_input
-    #st.success("Patient context applied successfully.")
-#current_context = st.session_state["patient_context"]
+    discharge_text = st.session_state["discharge_text"]
 
+# --- Display raw text ---
 if discharge_text:
-    st.markdown("Original Text")
-    st.write(st.session_state.discharge_text)  
+    st.markdown("#### Original Text")
+    st.write(discharge_text)
 else:
     st.info("Provide discharge instructions above using the selected mode, then click ‘Simplify Discharge Instructions’")
     st.stop()
@@ -179,10 +169,7 @@ show_details = st.sidebar.checkbox("Show Detailed Medical Jargon")
 font_size = st.sidebar.slider("Font size", 12, 24, 16)
 high_contrast = st.sidebar.checkbox("High Contrast Mode")
 if high_contrast:
-    st.markdown(
-        "<style>body {background-color:#000; color:#fff;}</style>",
-        unsafe_allow_html=True
-    )
+    st.markdown("<style>body {background-color:#000; color:#fff;}</style>", unsafe_allow_html=True)
 st.markdown(f"<style>* {{ font-size: {font_size}px; }}</style>", unsafe_allow_html=True)
 
 # --- Auto-translation based on locale ---
@@ -194,16 +181,9 @@ if af_lang not in ["English","Spanish","Chinese","French","German"]:
 # --- Options ---
 col1, col2 = st.columns(2)
 with col1:
-    reading_level = st.slider(
-        "Target Reading Level (US Grade)",
-        min_value=3, max_value=12, value=6
-    )
+    reading_level = st.slider("Target Reading Level (US Grade)", min_value=3, max_value=12, value=6)
 with col2:
-    language = st.selectbox(
-        "Output Language", ["English","Spanish","Chinese","French","German"], index=0
-    )
-
-
+    language = st.selectbox("Output Language", ["English","Spanish","Chinese","French","German"], index=0)
 
 # --- Glossary for tooltips ---
 glossary = {
@@ -219,26 +199,29 @@ def apply_tooltips(line: str) -> str:
         )
     return line
 
-# Concise Summary
+# --- LLM functions ---
 def generate_concise_summary(text: str, lang: str) -> dict:
     prompt = (
-        f"Simplify the following discharge instructions into a concise, include all essential information related to the patient especially the diagnose and the reason, patient-friendly overview.\n"
+        f"Simplify the following discharge instructions into a concise, include all essential "
+        f"information related to the patient especially the diagnosis and the reason, patient-friendly overview.\n"
         f"Output only a short paragraph (no sections):\n\n\"\"\"{text}\"\"\""
     )
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {"model": "deepseek/deepseek-r1", "messages": [{"role": "user","content": prompt}], "temperature": 0.0, "top_p": 1.0}
+    payload = {
+        "model": "deepseek/deepseek-r1",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.0,
+        "top_p": 1.0
+    }
     resp = requests.post(url, headers=headers, json=payload)
     return {
         "status": resp.status_code,
-        "raw_json": resp.json() if resp.headers.get("content-type",""
-            ).startswith("application/json") else resp.text
+        "raw_json": resp.json() if resp.headers.get("content-type","").startswith("application/json") else resp.text
     }
 
-# --- LLM call ---
 def summarize_discharge(text: str, reading_lvl: int, lang: str) -> dict:
     prompt = (
-        #f"Patient Context (if any): {patient_context}\n"
         f"The following is a hospital discharge summary. Simplify it to a {reading_lvl}th-grade reading level in {lang}.\n"
         "Break into sections with these headings:\n"
         "- **Simplified Instructions:** bullet-points\n"
@@ -251,23 +234,29 @@ def summarize_discharge(text: str, reading_lvl: int, lang: str) -> dict:
     )
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {"model": "deepseek/deepseek-r1", "messages": [{"role": "user","content": prompt}], "temperature": 0.0, "top_p": 1.0}
+    payload = {
+        "model": "deepseek/deepseek-r1",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.0,
+        "top_p": 1.0
+    }
     resp = requests.post(url, headers=headers, json=payload)
     return {
         "status": resp.status_code,
-        "raw_json": resp.json() if resp.headers.get("content-type",""
-            ).startswith("application/json") else resp.text
+        "raw_json": resp.json() if resp.headers.get("content-type","").startswith("application/json") else resp.text
     }
 
 # --- Helper: Generate calendar ICS ---
 def generate_ics(event_title: str) -> str:
     dt = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
-    return ("BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\n"
-            f"SUMMARY:{event_title}\nDTSTART:{dt}\nEND:VEVENT\nEND:VCALENDAR")
+    return (
+        "BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\n"
+        f"SUMMARY:{event_title}\nDTSTART:{dt}\nEND:VEVENT\nEND:VCALENDAR"
+    )
 
 # --- Main action ---
 if st.button("Simplify Discharge Instructions"):
-        # Concise summary
+    # Concise summary
     if not api_key and st.session_state["cached_concise"]:
         concise_text = st.session_state["cached_concise"]
     else:
@@ -277,10 +266,7 @@ if st.button("Simplify Discharge Instructions"):
             st.error(f"API returned status {api_resp['status']}")
             st.stop()
         choices = api_resp["raw_json"].get("choices", [])
-        concise_text = (
-            choices[0].get("message", {}).get("content", "").strip()
-            if choices else ""
-        )
+        concise_text = choices[0].get("message", {}).get("content", "").strip() if choices else ""
         st.session_state["cached_concise"] = concise_text
 
     # Detailed simplified summary (cached, not displayed)
@@ -294,11 +280,10 @@ if st.button("Simplify Discharge Instructions"):
             st.error(f"API returned status {api_resp2['status']}")
             st.stop()
         choices2 = api_resp2["raw_json"].get("choices", [])
-        simplified_text = (
-            choices2[0].get("message", {}).get("content", "").strip()
-            if choices2 else ""
-        )
+        simplified_text = choices2[0].get("message", {}).get("content", "").strip() if choices2 else ""
         st.session_state["cached_summary"] = simplified_text
+
+        # Parse sections
         sections = {
             "Simplified Instructions": [],
             "Importance": [],
@@ -321,160 +306,146 @@ if st.button("Simplify Discharge Instructions"):
                     sections[current].append(clean_text)
         st.session_state["cached_sections"] = sections
 
-    st.session_state["run_summary"] = True  
+    st.session_state["run_summary"] = True
+
+# --- Persistent display after summary ---
 if st.session_state["run_summary"]:
-        # Display summary and parsed sections
-        st.markdown("---")
-        st.subheader("Simplified Summary")
-        for line in concise_text.splitlines():
-            st.markdown(apply_tooltips(line), unsafe_allow_html=True)
-    
-        # Parsed Sections & Actions
-        st.markdown("---")
-        st.subheader("Categorization & Actions")
+    concise_text = st.session_state["cached_concise"]
+    sections = st.session_state["cached_sections"]
+
+    # Display simplified summary
+    st.markdown("---")
+    st.subheader("Simplified Summary")
+    for line in concise_text.splitlines():
+        st.markdown(apply_tooltips(line), unsafe_allow_html=True)
+
+    # Categorization & Actions
+    st.markdown("---")
+    st.subheader("Categorization & Actions")
+    # Clean up stray chars
+    for sec, items in sections.items():
+        sections[sec] = [re.sub(r'\}+$', '', itm).strip() for itm in items]
+    sections = {
+        re.sub(r'\*+', '', sec).strip(): [re.sub(r'\*+', '', itm).strip() for itm in items]
+        for sec, items in sections.items()
+    }
+    icons = {
+        "Simplified Instructions": "",
+        "Importance": "",
+        "Follow-Up Appointments or Tasks": "",
+        "Medications": "",
+        "Precautions": "",
+        "References": ""
+    }
+    if not sections or all(len(v) == 0 for v in sections.values()):
+        st.info("No structured sections found. Please ensure your summary uses the expected headings.")
+    else:
         for sec, items in sections.items():
-            sections[sec] = [
-                re.sub(r'\}+$', '', itm).strip()
-                for itm in items
-            ]
-        sections = {
-            re.sub(r'\*+', '', sec).strip(): [
-                re.sub(r'\*+', '', itm).strip()
-                for itm in items
-            ]
-            for sec, items in sections.items()
-        }
-        icons = {
-            "Simplified Instructions": "",
-            "Importance": "",
-            "Follow-Up Appointments or Tasks": "",
-            "Medications": "",
-            "Precautions": "",
-            "References": ""
-        }
-        if not sections or all(len(v)==0 for v in sections.values()):
-            st.info("No structured sections found. Please ensure your summary uses the expected headings.")
-        else:
-            for sec, items in sections.items():
-                if not items:
-                    continue
-                st.markdown(f"{icons.get(sec,'')} {sec}")
-                for itm in items:
-                    st.markdown(f"- {apply_tooltips(itm)}", unsafe_allow_html=True)
-                if sec == "Follow-Up Appointments or Tasks":
-                    for fu in items:
-                        ics = generate_ics(fu)
-                        st.download_button(
-                            f"Add '{fu}' to Calendar",
-                            data=ics,
-                            file_name="event.ics",
-                            mime="text/calendar"
-                        )
-                if sec == "Medications":
-                    st.subheader("Medication Checklist & Reminders")
-                    for med in items:
-                        st.checkbox(med, key=med)
-                    if st.button("Schedule Med Reminders", key="med_reminders_btn"):
-                        st.success("Medication reminders scheduled!")
-    
-            if textstat:
-                combined = " ".join(
-                    itm for items in sections.values() for itm in items
-                )
-                overall_grade = textstat.flesch_kincaid_grade(combined)
-                st.markdown(f"*Overall reading level: {overall_grade:.1f}th grade*", unsafe_allow_html=True)
-                
-                categorization_dict = sections 
-                st.markdown("#### Categorization as JSON")
-                st.json(categorization_dict)
-            
-                json_payload = json.dumps(categorization_dict, indent=2)
-                st.download_button(
-                    label="Download Categorization JSON",
-                    data=json_payload,
-                    file_name="categorization.json",
-                    mime="application/json"
-                )
-        
-        # 3) Parsed Sections & Actions
-        st.markdown("---")
-        st.subheader("Actions & Trackers")
-        last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
-        if last and last.get("pain",0) > 8:
-            st.warning("High pain detected – consider contacting your provider.")
-    
-        # 4) Symptom Recovery Timeline
-        if st.checkbox("Show Recovery Timeline") and st.session_state["symptoms"]:
-            df = pd.DataFrame(st.session_state["symptoms"])  # date,pain,swelling
-            df["date"] = pd.to_datetime(df["date"])
-            chart = df.set_index("date")["pain"]
-            st.line_chart(chart)
-    
-        # 5) Export Data for Clinicians
-        if st.button("Download Symptom Log for Clinician"):
-            df = pd.DataFrame(st.session_state["symptoms"])
-            csv = df.to_csv(index=False).encode("utf-8")
-            st.download_button("Download CSV", data=csv, file_name="symptoms.csv")
-    
-        # 6) EHR Sync (stub)
-        if st.button("Sync with EHR"):
-            st.info("EHR integration not configured.")
-    
-        # 7) Caregiver / Proxy Sharing
-        if st.checkbox("Enable caregiver access"):
-            email = st.text_input("Caregiver email:")
-            if st.button("Generate share link"):
-                st.write(f"Shareable link sent to {email}.")
-    
-        # 8) SMS & Push Reminders
-        phone = st.text_input("Phone number for SMS reminders:")
-        if st.button("Enable SMS Reminders") and phone:
-            st.success(f"SMS reminders will be sent to {phone}.")
-    
-        # 9) Privacy & Data Control
-        st.markdown("---")
-        st.subheader("Privacy Dashboard")
-        if st.button("View Stored Data"):
-            st.write(st.session_state)
-        if st.button("Clear All Data"):
-            for k in ["cached_summary","cached_sections","symptoms","faq_log"]:
-                st.session_state[k] = [] if isinstance(st.session_state[k], list) else None
-            st.success("Data cleared.")
-    
-        # 12) Mood & Interaction Alerts
-        mood = st.select_slider("How are you feeling today?", options=["Good","Okay","Poor"])
-        if mood == "Poor":
-            st.warning("We noticed you feel poor—review precautions or contact your provider.")
-        
-        # Symptom Tracker
-        st.markdown("---")
-        if st.checkbox("Enable Symptom Tracker"):
-            st.subheader("Symptom Tracker")
-            d = st.date_input("Date", datetime.date.today())
-            pain = st.slider("Pain level", 0, 10, 0)
-            swelling = st.slider("Swelling level", 0, 10, 0)
-            if st.button("Log Symptom"):
-                if "symptoms" not in st.session_state: st.session_state["symptoms"]=[]
-                st.session_state["symptoms"].append({"date":str(d),"pain":pain,"swelling":swelling})
-                st.success("Symptom logged")
-            if st.session_state.get("symptoms"):
-                st.write(st.session_state["symptoms"]) 
-    
-        # Feedback to provider
-        st.markdown("---")
-        st.subheader("Send Feedback to Provider")
-        msg = st.text_area("Your message to your care team")
-        if st.button("Send Message"):
-            st.success("Your message has been sent to your provider.")
-    
-        # Emergency contacts
-        st.markdown("---")
-        st.subheader("🚨 Emergency Contacts")
-        ec_name = st.text_input("Contact Name")
-        ec_num = st.text_input("Contact Number")
-        if st.button("Save Contact"):
-            st.session_state["emergency"]={"name":ec_name,"number":ec_num}
-            st.success("Emergency contact saved")
-        if st.session_state.get("emergency"):
-            em = st.session_state["emergency"]
-            st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
+            if not items:
+                continue
+            st.markdown(f"{icons.get(sec,'')} {sec}")
+            for itm in items:
+                st.markdown(f"- {apply_tooltips(itm)}", unsafe_allow_html=True)
+            if sec == "Follow-Up Appointments or Tasks":
+                for fu in items:
+                    ics = generate_ics(fu)
+                    st.download_button(
+                        f"Add '{fu}' to Calendar",
+                        data=ics,
+                        file_name="event.ics",
+                        mime="text/calendar"
+                    )
+            if sec == "Medications":
+                st.subheader("Medication Checklist & Reminders")
+                for med in items:
+                    st.checkbox(med, key=med)
+                if st.button("Schedule Med Reminders", key="med_reminders_btn"):
+                    st.success("Medication reminders scheduled!")
+
+        # Overall reading level and JSON export
+        if textstat:
+            combined = " ".join(itm for items in sections.values() for itm in items)
+            overall_grade = textstat.flesch_kincaid_grade(combined)
+            st.markdown(f"*Overall reading level: {overall_grade:.1f}th grade*", unsafe_allow_html=True)
+
+        st.markdown("#### Categorization as JSON")
+        st.json(sections)
+        json_payload = json.dumps(sections, indent=2)
+        st.download_button(
+            label="Download Categorization JSON",
+            data=json_payload,
+            file_name="categorization.json",
+            mime="application/json"
+        )
+
+    # Actions & Trackers
+    st.markdown("---")
+    st.subheader("Actions & Trackers")
+    last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
+    if last and last.get("pain", 0) > 8:
+        st.warning("High pain detected – consider contacting your provider.")
+    if st.checkbox("Show Recovery Timeline") and st.session_state["symptoms"]:
+        df = pd.DataFrame(st.session_state["symptoms"])
+        df["date"] = pd.to_datetime(df["date"])
+        chart = df.set_index("date")["pain"]
+        st.line_chart(chart)
+    if st.button("Download Symptom Log for Clinician"):
+        df = pd.DataFrame(st.session_state["symptoms"])
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("Download CSV", data=csv, file_name="symptoms.csv")
+    if st.button("Sync with EHR"):
+        st.info("EHR integration not configured.")
+    if st.checkbox("Enable caregiver access"):
+        email = st.text_input("Caregiver email:")
+        if st.button("Generate share link"):
+            st.write(f"Shareable link sent to {email}.")
+    phone = st.text_input("Phone number for SMS reminders:")
+    if st.button("Enable SMS Reminders") and phone:
+        st.success(f"SMS reminders will be sent to {phone}.")
+
+    # Privacy Dashboard
+    st.markdown("---")
+    st.subheader("Privacy Dashboard")
+    if st.button("View Stored Data"):
+        st.write(st.session_state)
+    if st.button("Clear All Data"):
+        for k in ["cached_summary", "cached_sections", "symptoms", "faq_log"]:
+            st.session_state[k] = [] if isinstance(st.session_state[k], list) else None
+        st.success("Data cleared.")
+
+    # Mood & Interaction Alerts
+    mood = st.select_slider("How are you feeling today?", options=["Good","Okay","Poor"])
+    if mood == "Poor":
+        st.warning("We noticed you feel poor—review precautions or contact your provider.")
+
+    # Symptom Tracker
+    st.markdown("---")
+    if st.checkbox("Enable Symptom Tracker"):
+        st.subheader("Symptom Tracker")
+        d = st.date_input("Date", datetime.date.today())
+        pain = st.slider("Pain level", 0, 10, 0)
+        swelling = st.slider("Swelling level", 0, 10, 0)
+        if st.button("Log Symptom"):
+            st.session_state["symptoms"].append({"date": str(d), "pain": pain, "swelling": swelling})
+            st.success("Symptom logged")
+        if st.session_state.get("symptoms"):
+            st.write(st.session_state["symptoms"])
+
+    # Send Feedback
+    st.markdown("---")
+    st.subheader("Send Feedback to Provider")
+    msg = st.text_area("Your message to your care team")
+    if st.button("Send Message"):
+        st.success("Your message has been sent to your provider.")
+
+    # Emergency Contacts
+    st.markdown("---")
+    st.subheader("🚨 Emergency Contacts")
+    ec_name = st.text_input("Contact Name")
+    ec_num = st.text_input("Contact Number")
+    if st.button("Save Contact"):
+        st.session_state["emergency"] = {"name": ec_name, "number": ec_num}
+        st.success("Emergency contact saved")
+    if st.session_state.get("emergency"):
+        em = st.session_state["emergency"]
+        st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
