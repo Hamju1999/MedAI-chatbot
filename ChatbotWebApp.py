@@ -202,7 +202,7 @@ def generate_ics(evt:str)->str:
 
 # --- Main action ---
 if st.button("Simplify Discharge Instructions"):
-    with st.spinner("Simplifying discharge summary…"):
+    with st.spinner("Simplifying Discharge Instructions…"):
         # concise
         if not api_key and st.session_state["cached_concise"]:
             concise = st.session_state["cached_concise"]
