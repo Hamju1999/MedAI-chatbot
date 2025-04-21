@@ -309,30 +309,37 @@ if st.session_state["run_summary"]:
     for ln in concise.splitlines():
         st.markdown(apply_tooltips(ln), unsafe_allow_html=True)
 
-    # Categorization & Actions
-    st.markdown("---")
+    # --- new Categorization & Actions block ---
     st.subheader("Categorization & Actions")
-    # clean
-    for h,its in sections.items():
-        sections[h] = [re.sub(r"\}+$","",i).strip() for i in its]
-    sections = { re.sub(r"\*+","",h).strip(): [re.sub(r"\*+","",i).strip() for i in its] for h,its in sections.items() }
-
-    if not sections or all(not v for v in sections.values()):
-        st.info("No structured sections found.")
-    else:
-        for h,its in sections.items():
-            st.markdown(f"**{h}**")
-            for i in its:
-                st.markdown(f"- {apply_tooltips(i)}", unsafe_allow_html=True)
-            if h=="Follow-Up Appointments or Tasks":
-                for fu in its:
-                    st.download_button(f"Add '{fu}' to Calendar", generate_ics(fu), "event.ics", "text/calendar")
-            if h=="Medications":
-                st.subheader("Medication Checklist & Reminders")
-                for m in its:
-                    st.checkbox(m, key=f"med_{m}")
-                if st.button("Schedule Med Reminders", key="med_reminders_btn"):
-                    st.success("Medication reminders scheduled!")
+    
+    for h, its in sections.items():
+        if not its:
+            continue
+    
+        # Section header
+        st.markdown(f"**{h}**")
+    
+        # Section items
+        for item in its:
+            st.markdown(f"- {apply_tooltips(item)}", unsafe_allow_html=True)
+    
+        # Calendar buttons under Follow‑Up
+        if h == "Follow‑Up Appointments or Tasks":
+            for fu in its:
+                ics = generate_ics(fu)
+                st.download_button(
+                    f"Add '{fu}' to Calendar",
+                    data=ics,
+                    file_name="event.ics",
+                    mime="text/calendar"
+                )
+    
+        # Medication checklist + single schedule button
+        if h == "Medications":
+            st.subheader("Medication Checklist & Reminders")
+            for med in its:
+                st.checkbox(med, key=f"med_{med}")
+            st.button("Schedule Med Reminders", key="med_reminders_btn")
 
         # overall reading level & JSON
         if textstat:
