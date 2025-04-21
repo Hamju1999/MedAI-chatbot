@@ -324,24 +324,24 @@ if st.session_state["run_summary"]:
         header_clean = raw_header.replace("*", "").rstrip(":").strip()
         st.markdown(f"**{header_clean}**")
     
-    for raw in its:
-        # strip bullets/spaces
-        text = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-        # remove any leading "Task:" prefix
-        text = re.sub(r'^(Task:)\s*', '', text, flags=re.IGNORECASE)
-        # strip trailing colons & stars
-        text = re.sub(r'[:\*]+$', '', text).strip()
-        st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
-    
-        # Calendar button only for Follow‑Up items mentioning "visit"
-        if header_clean == "Follow-Up Appointments or Tasks" and "visit" in text.lower():
-            ics = generate_ics(text)
-            st.download_button(
-                label=f"Add '{text}' to Calendar",
-                data=ics,
-                file_name="event.ics",
-                mime="text/calendar"
-            )
+        for raw in its:
+            # strip bullets/spaces
+            text = re.sub(r'^[\u2022\-\*\s]+', '', raw)
+            # remove any leading "Task:" prefix
+            text = re.sub(r'^(Task:)\s*', '', text, flags=re.IGNORECASE)
+            # strip trailing colons & stars
+            text = re.sub(r'[:\*]+$', '', text).strip()
+            st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
+        
+            # Calendar button only for Follow‑Up items mentioning "visit"
+            if header_clean == "Follow-Up Appointments or Tasks" and "visit" in text.lower():
+                ics = generate_ics(text)
+                st.download_button(
+                    label=f"Add '{text}' to Calendar",
+                    data=ics,
+                    file_name="event.ics",
+                    mime="text/calendar"
+                )
 
     # 2) Medication checklist
     meds = sections.get("Medications", [])
