@@ -223,12 +223,6 @@ def generate_ics(event_title: str) -> str:
     return ("BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\n"
             f"SUMMARY:{event_title}\nDTSTART:{dt}\nEND:VEVENT\nEND:VCALENDAR")
 
-# Cleaning Text
-def clean_text(text: str) -> str:
-    text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"^[\-\*\s]+|[:\*\s]+$", "", text)
-    return text.strip()
-
 # --- Main action ---
 if st.button("Simplify Discharge Instructions"):
         # Concise summary
@@ -290,6 +284,12 @@ if st.button("Simplify Discharge Instructions"):
     st.subheader("Simplified Summary")
     for line in concise_text.splitlines():
         st.markdown(apply_tooltips(line), unsafe_allow_html=True)
+
+    # Cleaning Text
+    def clean_text(text: str) -> str:
+        text = re.sub(r"\s+", " ", text)
+        text = re.sub(r"^[\-\*\s]+|[:\*\s]+$", "", text)
+        return text.strip()
 
     # Parsed Sections & Actions
     streamlit.markdown("---")
