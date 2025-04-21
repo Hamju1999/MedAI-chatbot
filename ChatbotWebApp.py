@@ -199,11 +199,7 @@ with col2:
         "Output Language", ["English","Spanish","Chinese","French","German"], index=0
     )
 
-# Determine discharge_text from whichever source was given
-if uploaded_file:
-    discharge_text = extract_text_from_file(uploaded_file).strip()
-else:
-    discharge_text = discharge_text.strip()
+
 
 # --- Glossary for tooltips ---
 glossary = {
