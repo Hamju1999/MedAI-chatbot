@@ -203,8 +203,9 @@ def apply_tooltips(line:str)->str:
 # --- LLM calls ---
 def generate_concise_summary(text:str, lang:str)->dict:
     prompt = (
-        f"Simplify into a concise, fact‑accurate, patient‑friendly overview, "
-        f"including diagnosis & reason. Output one short paragraph:\n\n'''{text}'''"
+        f"Simplify the following discharge instructions into a concise, include all essential "
+        f"information related to the patient especially the diagnosis and the reason, patient-friendly overview.\n"
+        f"Output only a short paragraph (no sections):\n\n\"\"\"{text}\"\"\""
     )
     payload = {"model":"deepseek/deepseek-r1",
                "messages":[{"role":"user","content":prompt}],
@@ -217,9 +218,15 @@ def generate_concise_summary(text:str, lang:str)->dict:
 
 def summarize_discharge(text:str, lvl:int, lang:str)->dict:
     prompt = (
-        f"Simplify to a {lvl}th‑grade reading level in {lang}. "
-        "Break into sections: Simplified Instructions, Importance, Follow-Up Appointments or Tasks, Medications, Precautions, References.\n\n"
-        f"'''{text}'''"
+        f"The following is a hospital discharge summary. Simplify it to a {reading_lvl}th-grade reading level in {lang}.\n"
+        "Break into sections with these headings:\n"
+        "- **Simplified Instructions:** bullet-points\n"
+        "- **Importance:** why each instruction matters\n"
+        "- **Follow-Up Appointments or Tasks:** tasks/visits\n"
+        "- **Medications:** with simple dosing notes\n"
+        "- **Precautions:** warning signs, activities to avoid\n"
+        "- **References:** brief reasons/explanations\n\n"
+        f"Now simplify:\n\"\"\"{text}\"\"\""
     )
     payload = {"model":"deepseek/deepseek-r1",
                "messages":[{"role":"user","content":prompt}],
