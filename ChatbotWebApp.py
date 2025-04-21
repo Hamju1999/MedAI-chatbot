@@ -202,39 +202,41 @@ def generate_ics(evt:str)->str:
 
 # --- Main action ---
 if st.button("Simplify Discharge Instructions"):
-    # concise
-    if not api_key and st.session_state["cached_concise"]:
-        concise = st.session_state["cached_concise"]
-    else:
-        r = generate_concise_summary(discharge_text, language)
-        if r["status"]!=200:
-            st.error(f"API {r['status']}"); st.stop()
-        concise = r["raw_json"]["choices"][0]["message"]["content"].strip()
-        st.session_state["cached_concise"] = concise
+    with st.spinner("Simplifying discharge summary…"):
+        # concise
+        if not api_key and st.session_state["cached_concise"]:
+            concise = st.session_state["cached_concise"]
+        else:
+            r = generate_concise_summary(discharge_text, language)
+            if r["status"] != 200:
+                st.error(f"API {r['status']}"); st.stop()
+            concise = r["raw_json"]["choices"][0]["message"]["content"].strip()
+            st.session_state["cached_concise"] = concise
 
-    # detailed (cache, but hidden)
-    if not api_key and st.session_state["cached_summary"]:
-        _, secs = st.session_state["cached_summary"], st.session_state["cached_sections"]
-    else:
-        r2 = summarize_discharge(discharge_text, reading_level, language)
-        if r2["status"]!=200:
-            st.error(f"API {r2['status']}"); st.stop()
-        detailed = r2["raw_json"]["choices"][0]["message"]["content"].strip()
-        st.session_state["cached_summary"]  = detailed
-        # parse into secs
-        sections = {h:[] for h in ["Simplified Instructions","Importance","Follow-Up Appointments or Tasks","Medications","Precautions","References"]}
-        cur=None
-        for ln in detailed.splitlines():
-            t=ln.strip(); t=re.sub(r"^[\-\*\s]+","",t)
-            for h in sections:
-                if t.lower().startswith(h.lower()):
-                    cur=h; break
-            else:
-                if cur and t:
-                    sections[cur].append(re.sub(r"[:\*]+$","",t).strip())
-        st.session_state["cached_sections"] = sections
+        # detailed (cache, but hidden)
+        if not api_key and st.session_state["cached_summary"]:
+            pass
+        else:
+            r2 = summarize_discharge(discharge_text, reading_level, language)
+            if r2["status"] != 200:
+                st.error(f"API {r2['status']}"); st.stop()
+            detailed = r2["raw_json"]["choices"][0]["message"]["content"].strip()
+            st.session_state["cached_summary"] = detailed
+            # parse into sections
+            sections = {h: [] for h in st.session_state["cached_sections"].keys()}
+            cur = None
+            for ln in detailed.splitlines():
+                t = re.sub(r"^[\-\*\s]+", "", ln.strip())
+                for h in sections:
+                    if t.lower().startswith(h.lower()):
+                        cur = h
+                        break
+                else:
+                    if cur and t:
+                        sections[cur].append(re.sub(r"[:\*]+$", "", t).strip())
+            st.session_state["cached_sections"] = sections
 
-    st.session_state["run_summary"] = True
+        st.session_state["run_summary"] = True
 
 # --- Persistent display ---
 if st.session_state["run_summary"]:
@@ -343,14 +345,10 @@ if st.session_state["run_summary"]:
     data_export = {
         "discharge_text": discharge_text,
         "concise_summary": st.session_state["cached_concise"],
-        "detailed_summary": st.session_state["cached_summary"],
         "sections": st.session_state["cached_sections"],
         "symptoms": st.session_state["symptoms"],
         "feedback_messages": st.session_state["faq_log"],
         "emergency_contact": st.session_state.get("emergency", {}),
-        "caregiver_email": st.session_state.get("caregiver_email", ""),
-        "sms_phone": st.session_state.get("sms_phone", ""),
-        "mood": st.session_state.get("mood", ""),
     }
     st.download_button(
         label="Download All Data (JSON)",
