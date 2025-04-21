@@ -179,7 +179,7 @@ def apply_tooltips(line: str) -> str:
 # Concise Summary
 def generate_concise_summary(text: str, lang: str) -> dict:
     prompt = (
-        f"Simplify the following discharge summary into a concise, include all essential information related to the patient especially the diagnose and why is it important, patient-friendly overview.\n"
+        f"Simplify the following discharge summary into a concise, include all essential information related to the patient especially the diagnose and the reason, patient-friendly overview.\n"
         f"Output only a short paragraph (no sections):\n\n\"\"\"{text}\"\"\""
     )
     url = "https://openrouter.ai/api/v1/chat/completions"
@@ -198,12 +198,12 @@ def summarize_discharge(text: str, reading_lvl: int, lang: str) -> dict:
         #f"Patient Context (if any): {patient_context}\n"
         f"The following is a hospital discharge summary. Simplify it to a {reading_lvl}th-grade reading level in {lang}.\n"
         "Break into sections with these headings:\n"
-        "- **Simplified Instructions:** bullet-points\n"
-        "- **Importance:** why each instruction matters\n"
-        "- **Follow-Up Appointments or Tasks:** tasks/visits\n"
-        "- **Medications:** with simple dosing notes\n"
-        "- **Precautions:** warning signs, activities to avoid\n"
-        "- **References:** brief reasons/explanations\n\n"
+        "- Simplified Instructions: bullet-points\n"
+        "- Importance: why each instruction matters\n"
+        "- Follow-Up Appointments or Tasks: tasks/visits\n"
+        "- Medications: with simple dosing notes\n"
+        "- Precautions: warning signs, activities to avoid\n"
+        "- References: brief reasons/explanations\n\n"
         f"Now simplify:\n\"\"\"{text}\"\"\""
     )
     url = "https://openrouter.ai/api/v1/chat/completions"
