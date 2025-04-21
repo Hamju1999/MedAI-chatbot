@@ -91,6 +91,9 @@ else:
         st.info("Please provide your OpenRouter API key.")
         st.stop()
 
+def _on_paste():
+    pass
+
 # --- File uploader ---
 pasted_text = st.text_area(
     "Discharge Instructions Text:",
