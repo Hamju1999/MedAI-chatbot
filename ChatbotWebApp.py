@@ -373,15 +373,6 @@ if st.session_state["run_summary"]:
             except Exception as e:
                 st.error(f"Email failed: {e}")
 
-    # SMS reminders
-    phone = st.text_input("Phone for SMS reminders:", key="sms_phone")
-    if phone and st.button("Enable SMS Reminders", key="enable_sms"):
-        try:
-            sid = send_sms(phone, "This is your scheduled reminder from the Discharge Summary app.")
-            st.success(f"SMS sent (SID {sid})")
-        except Exception as e:
-            st.error(f"SMS failed: {e}")
-
     # Send Feedback
     st.markdown("---")
     st.subheader("Send Feedback to Provider")
@@ -404,16 +395,19 @@ if st.session_state["run_summary"]:
             st.session_state.pop(k,None)
         st.success("Cleared")
 
+# --- Emergency Contacts ---
+st.markdown("---")
+st.subheader("🚨 Emergency Contacts")
 
+with st.form("emergency_form"):
+    ec_name = st.text_input("Contact Name", key="ec_name_input")
+    ec_num  = st.text_input("Contact Number", key="ec_num_input")
+    save_ec = st.form_submit_button("Save Contact")
+    if save_ec:
+        st.session_state["emergency"] = {"name": ec_name, "number": ec_num}
+        st.success("Emergency contact saved")
 
-    # Emergency Contacts
-    st.markdown("---")
-    st.subheader("🚨 Emergency Contacts")
-    ec_name = st.text_input("Contact Name", key="ec_name")
-    ec_num  = st.text_input("Contact Number", key="ec_num")
-    if st.button("Save Contact", key="save_ec"):
-        st.session_state["emergency"] = {"name":ec_name,"number":ec_num}
-        st.success("Contact saved")
-    if "emergency" in st.session_state:
-        em = st.session_state["emergency"]
-        st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
+# Always show the saved contact below
+if "emergency" in st.session_state:
+    em = st.session_state["emergency"]
+    st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
