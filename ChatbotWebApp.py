@@ -350,6 +350,10 @@ if st.session_state["run_summary"]:
         "feedback_messages": st.session_state["faq_log"],
         "emergency_contact": st.session_state.get("emergency", {}),
     }
+    # display it in‑page
+    st.markdown("#### JSON Preview")
+    st.json(data_export)
+    # download button
     st.download_button(
         label="Download All Data (JSON)",
         data=json.dumps(data_export, indent=2),
