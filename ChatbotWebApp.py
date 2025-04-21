@@ -378,30 +378,50 @@ if st.session_state["run_summary"]:
             mime="application/json"
         )
 
-    # Actions & Trackers
+    # 3) Actions & Trackers
     st.markdown("---")
     st.subheader("Actions & Trackers")
+
+    # High‐pain alert
     last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
     if last and last.get("pain", 0) > 8:
         st.warning("High pain detected – consider contacting your provider.")
-    if st.checkbox("Show Recovery Timeline") and st.session_state["symptoms"]:
+
+    # Recovery timeline
+    if st.checkbox("Show Recovery Timeline", key="show_timeline"):
         df = pd.DataFrame(st.session_state["symptoms"])
         df["date"] = pd.to_datetime(df["date"])
         chart = df.set_index("date")["pain"]
         st.line_chart(chart)
-    if st.button("Download Symptom Log for Clinician"):
-        df = pd.DataFrame(st.session_state["symptoms"])
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", data=csv, file_name="symptoms.csv")
-    if st.button("Sync with EHR"):
+
+    # Download symptom log directly
+    if st.session_state["symptoms"]:
+        csv_data = pd.DataFrame(st.session_state["symptoms"]).to_csv(index=False)
+        st.download_button(
+            label="Download Symptom Log for Clinician",
+            data=csv_data,
+            file_name="symptoms.csv",
+            mime="text/csv",
+            key="download_symptoms"
+        )
+
+    # EHR Sync stub
+    if st.button("Sync with EHR", key="sync_ehr"):
         st.info("EHR integration not configured.")
-    if st.checkbox("Enable caregiver access"):
-        email = st.text_input("Caregiver email:")
-        if st.button("Generate share link"):
-            st.write(f"Shareable link sent to {email}.")
-    phone = st.text_input("Phone number for SMS reminders:")
-    if st.button("Enable SMS Reminders") and phone:
-        st.success(f"SMS reminders will be sent to {phone}.")
+
+    # Caregiver / Proxy Sharing
+    if st.checkbox("Enable caregiver access", key="enable_caregiver"):
+        email = st.text_input("Caregiver email:", key="caregiver_email")
+        if email and st.button("Generate share link", key="gen_share"):
+            # simulate link generation
+            link = f"https://yourapp.example.com/share?email={email}"
+            st.success(f"Shareable link: {link}")
+
+    # SMS & Push Reminders
+    phone = st.text_input("Phone number for SMS reminders:", key="sms_phone")
+    if phone and st.button("Enable SMS Reminders", key="enable_sms"):
+        # simulate scheduling
+        st.success(f"SMS reminders will be sent to {phone}")
 
     # Privacy Dashboard
     st.markdown("---")
