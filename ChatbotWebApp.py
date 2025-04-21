@@ -350,8 +350,14 @@ if st.session_state["run_summary"]:
         st.markdown("")  # spacing
         st.subheader("Medication Checklist & Reminders")
         for raw in meds:
+            # 1) strip any leading bullets/spaces
             m = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-            m = re.sub(r'[:\*]+$', '', m).strip()
+            # 2) remove all '*' characters
+            m = m.replace('*', '')
+            # 3) remove any leading "Task:" prefix
+            m = re.sub(r'^(Task:?\s*)', '', m, flags=re.IGNORECASE)
+            # 4) strip trailing colons and whitespace
+            m = m.strip().rstrip(':').strip()
             st.checkbox(m, key=f"med_{m}")
         if st.button("Schedule Med Reminders", key="med_reminders_btn"):
             st.success("Medication reminders scheduled!")
