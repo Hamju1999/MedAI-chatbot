@@ -222,6 +222,12 @@ def generate_ics(event_title: str) -> str:
     return ("BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\n"
             f"SUMMARY:{event_title}\nDTSTART:{dt}\nEND:VEVENT\nEND:VCALENDAR")
 
+# Cleaning Text
+def clean_text(text: str) -> str:
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"^[\-\*\s]+|[:\*\s]+$", "", text)
+    return text.strip()
+
 # --- Main action ---
 if st.button("Simplify Discharge Instructions"):
         # Concise summary
@@ -256,7 +262,6 @@ if st.button("Simplify Discharge Instructions"):
             if choices2 else ""
         )
         st.session_state["cached_summary"] = simplified_text
-        # Parse sections with improved detection
         sections = {
             "Simplified Instructions": [],
             "Importance": [],
@@ -287,7 +292,7 @@ if st.button("Simplify Discharge Instructions"):
 
     # Parsed Sections & Actions
     st.markdown("---")
-    st.subheader("Parsed Sections & Actions")
+    st.subheader("Categorization & Actions")
     icons = {
         "Simplified Instructions": "",
         "Importance": "",
@@ -302,8 +307,6 @@ if st.button("Simplify Discharge Instructions"):
         for sec, items in sections.items():
             if not items:
                 continue
-            # clean both icon and section name
-            clean_text = re.sub(r"[:\*]+$", "", text).strip()
             icon = clean_text(icons.get(sec, ""))
             header = clean_text(sec)
             st.markdown(f"**{icon} {header}**")
@@ -331,7 +334,6 @@ if st.button("Simplify Discharge Instructions"):
     # 3) Parsed Sections & Actions
     st.markdown("---")
     st.subheader("Actions & Trackers")
-    # Context-aware alerts
     last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
     if last and last.get("pain",0) > 8:
         st.warning("High pain detected – consider contacting your provider.")
