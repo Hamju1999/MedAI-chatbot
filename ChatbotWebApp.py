@@ -77,15 +77,17 @@ uploaded_file = st.file_uploader(
     type=["txt", "pdf"],
     help="Accepted formats: .txt or .pdf"
 )
-
+if uploaded_file:
+    discharge_text = extract_text_from_file(uploaded_file).strip()
+    if not discharge_text:
+        st.error("Could not extract any text. Please upload a valid file.")
+        st.stop()
+    st.markdown("Original Text")
+    st.write(discharge_text)    
 # Must supply one or the other
 if not pasted_text and not uploaded_file:
     st.info("Please paste text above or upload a file below.")
     st.stop()
-    
-discharge_text = extract_text_from_file(uploaded_file).strip()
-st.markdown("Original Text")
-st.write(discharge_text)  
 
 # --- Patient Context & Voice Input ---
 #if "patient_context" not in st.session_state:
