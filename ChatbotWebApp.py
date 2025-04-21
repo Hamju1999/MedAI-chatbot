@@ -322,12 +322,6 @@ if st.session_state["run_summary"]:
         st.json(sections)
         st.download_button("Download Categorization JSON", json.dumps(sections, indent=2), "categorization.json", "application/json")
 
-    # Mood & Alerts
-    st.markdown("---")
-    mood = st.select_slider("How are you feeling?",["Good","Okay","Poor"],key="mood")
-    if mood=="Poor":
-        st.warning("Consider contacting your provider.")
-
     # Symptom Tracker
     st.markdown("---")
     st.subheader("Symptom Tracker")
