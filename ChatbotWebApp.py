@@ -322,7 +322,7 @@ if st.button("Simplify Discharge Instructions"):
         st.session_state["cached_sections"] = sections
 
     st.session_state["run_summary"] = True  
-    if st.session_state["run_summary"]:
+if st.session_state["run_summary"]:
         # Display summary and parsed sections
         st.markdown("---")
         st.subheader("Simplified Summary")
