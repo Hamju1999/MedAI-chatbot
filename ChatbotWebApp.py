@@ -324,7 +324,7 @@ if st.session_state["run_summary"]:
         header_clean = raw_header.replace("*", "").rstrip(":").strip()
         st.markdown(f"**{header_clean}**")
     
-        for raw in its:
+        for raw in items:
             # strip bullets/spaces
             text = re.sub(r'^[\u2022\-\*\s]+', '', raw)
             # remove any leading "Task:" prefix
