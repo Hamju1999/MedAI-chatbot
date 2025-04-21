@@ -263,9 +263,12 @@ if st.button("Simplify Discharge Instructions"):
                 "References": []
             }
             
-            # compile flexible header patterns
+            # compile flexible header patterns (now stripping trailing ** too)
             header_patterns = {
-                name: re.compile(rf"^\s*\**\s*{re.escape(name)}\s*:?\s*$", re.IGNORECASE)
+                name: re.compile(
+                    rf"^\s*\**\s*{re.escape(name)}\s*:?\s*\**\s*$",
+                    re.IGNORECASE
+                )
                 for name in sections
             }
             
