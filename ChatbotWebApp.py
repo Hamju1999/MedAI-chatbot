@@ -131,13 +131,6 @@ elif mode == "Upload file":
         else:
             st.session_state["discharge_text"] = extracted
     discharge_text = st.session_state.get("discharge_text", "")
-        
-if st.session_state.discharge_text:
-    st.markdown("Original Text")
-    st.write(st.session_state.discharge_text)  
-else:
-    st.info("Provide discharge instructions above using the selected mode, then click ‘Simplify Discharge Instructions’")
-    st.stop()
 
 # --- Patient Context & Voice Input ---
 #if "patient_context" not in st.session_state:
@@ -167,6 +160,13 @@ else:  # mode == "Voice note"
     #st.session_state["patient_context"] = patient_context_input
     #st.success("Patient context applied successfully.")
 #current_context = st.session_state["patient_context"]
+
+if discharge_text:
+    st.markdown("Original Text")
+    st.write(st.session_state.discharge_text)  
+else:
+    st.info("Provide discharge instructions above using the selected mode, then click ‘Simplify Discharge Instructions’")
+    st.stop()
 
 # --- Dynamic Detail Level ---
 show_details = st.sidebar.checkbox("Show Detailed Medical Jargon")
