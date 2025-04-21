@@ -333,19 +333,6 @@ if st.session_state["run_summary"]:
     if st.button("Sync with EHR", key="sync_ehr"):
         st.info("EHR integration not configured.")
 
-    # caregiver
-    if st.checkbox("Enable caregiver access", key="enable_caregiver"):
-        email = st.text_input("Caregiver email:", key="caregiver_email")
-        if email and st.button("Generate share link", key="gen_share"):
-            link = f"https://yourapp.example.com/share?email={email}"
-            # this opens the user's default mail client with subject/body pre‑filled
-            mailto = (
-                f"mailto:{email}"
-                f"?subject={requests.utils.quote('Caregiver Access Link')}"
-                f"&body={requests.utils.quote('Here is your link: ' + link)}"
-            )
-            st.markdown(f"[Click here to email the link]({mailto})")
-
     # Send Feedback
     st.markdown("---")
     st.subheader("Send Feedback to Provider")
