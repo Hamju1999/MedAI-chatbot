@@ -66,12 +66,21 @@ else:
         st.stop()
 
 # --- File uploader ---
+pasted_text = st.text_area(
+    "Discharge Instructions Text:",
+    height=200,
+    help="Or just paste your instructions instead of uploading a file"
+)
+# 2) …or uploading
 uploaded_file = st.file_uploader(
     "Upload Discharge Summary (TXT or PDF)",
     type=["txt", "pdf"],
     help="Accepted formats: .txt or .pdf"
 )
-if not uploaded_file:
+
+# Must supply one or the other
+if not pasted_text and not uploaded_file:
+    st.info("Please paste text above or upload a file below.")
     st.stop()
 
 # --- Patient Context & Voice Input ---
@@ -157,10 +166,11 @@ def extract_text_from_file(file) -> str:
                 pass
         return ""
 
-discharge_text = extract_text_from_file(uploaded_file).strip()
-if not discharge_text:
-    st.error("Could not extract any text. Please upload a valid TXT or PDF.")
-    st.stop()
+# Determine discharge_text from whichever source was given
+if uploaded_file:
+    discharge_text = extract_text_from_file(uploaded_file).strip()
+else:
+    discharge_text = pasted_text.strip()
 
 # --- Glossary for tooltips ---
 glossary = {
@@ -314,6 +324,10 @@ if st.button("Simplify Discharge Instructions"):
             if not items:
                 continue
             st.markdown(f"{icons.get(sec,'')} {sec}")
+            if textstat:
+                section_text = " ".join(items)
+                grade = textstat.flesch_kincaid_grade(section_text)
+                st.markdown(f"*Reading level: {grade:.1f}th grade*", unsafe_allow_html=True)
             for itm in items:
                 st.markdown(f"- {apply_tooltips(itm)}", unsafe_allow_html=True)
             if sec == "Follow-Up Appointments or Tasks":
