@@ -172,6 +172,9 @@ if uploaded_file:
 else:
     discharge_text = pasted_text.strip()
 
+st.markdown("Original Text")
+st.code(discharge_text)
+
 # --- Glossary for tooltips ---
 glossary = {
     "otoscope exam": "An exam where a doctor looks inside your ear",
