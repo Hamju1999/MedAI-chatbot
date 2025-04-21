@@ -327,23 +327,30 @@ if st.session_state["run_summary"]:
     
         # Render items
         for raw in its:
-            # strip leading bullets/spaces and trailing colons or asterisks
-            item = re.sub(r"^[\u2022\-\*\s]+", "", raw)
-            item = re.sub(r"[:\*]+$", "", item).strip()
+            # strip bullets/spaces
+            item = re.sub(r'^[\u2022\-\*\s]+', '', raw)
+            # strip Task: prefix
+            item = re.sub(r'^(Task:?\**)\s*', '', item, flags=re.IGNORECASE)
+            # strip trailing colons or stars
+            item = re.sub(r'[:\*]+$', '', item).strip()
             st.markdown(f"- {apply_tooltips(item)}", unsafe_allow_html=True)
     
-        # Follow‑Up calendar buttons
-        if header_clean == "Follow-Up Appointments or Tasks":
-            for raw in its:
-                fu = re.sub(r"^[\u2022\-\*\s]+", "", raw)
-                fu = re.sub(r"[:\*]+$", "", fu).strip()
-                ics = generate_ics(fu)
-                st.download_button(
-                    f"Add '{fu}' to Calendar",
-                    data=ics,
-                    file_name="event.ics",
-                    mime="text/calendar"
-                )
+            # Follow‑Up calendar buttons (and strip any leading "Task:" prefix)
+            if header_clean == "Follow‑Up Appointments or Tasks":
+                for raw in its:
+                    # 1) remove bullets/spaces
+                    fu = re.sub(r'^[\u2022\-\*\s]+', '', raw)
+                    # 2) remove leading "Task:" or "Task:**"
+                    fu = re.sub(r'^(Task:?\**)\s*', '', fu, flags=re.IGNORECASE)
+                    # 3) strip any trailing colons or stars
+                    fu = re.sub(r'[:\*]+$', '', fu).strip()
+                    ics = generate_ics(fu)
+                    st.download_button(
+                        label=f"Add '{fu}' to Calendar",
+                        data=ics,
+                        file_name="event.ics",
+                        mime="text/calendar"
+                    )
     
     # 2) Medication checklist only once, after loop
     meds = sections.get("Medications", [])
@@ -365,6 +372,7 @@ if st.session_state["run_summary"]:
         )
         grade = textstat.flesch_kincaid_grade(all_text)
         st.markdown(f"*Overall reading level: {grade:.1f}th grade*")
+        
     # --- Symptom Tracker with auto‑extracted symptoms ---
     st.markdown("---")
     st.subheader("Symptom Tracker")
