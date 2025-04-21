@@ -291,8 +291,8 @@ if st.button("Simplify Discharge Instructions"):
         st.markdown(apply_tooltips(line), unsafe_allow_html=True)
 
     # Parsed Sections & Actions
-    st.markdown("---")
-    st.subheader("Categorization & Actions")
+    streamlit.markdown("---")
+    streamlit.subheader("Categorization & Actions")
     icons = {
         "Simplified Instructions": "",
         "Importance": "",
