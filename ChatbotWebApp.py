@@ -102,7 +102,7 @@ discharge_text = st.text_area(
     "Discharge Instructions Text:",
     height=200,
     help="Or just paste your instructions instead of uploading a file",
-    key="discharge_text"         # ← this makes discharge_text live in session_state
+    key="discharge_text"        
 )
 # 2) …or uploading
 uploaded_file = st.file_uploader(
@@ -184,7 +184,7 @@ with col2:
 if uploaded_file:
     discharge_text = extract_text_from_file(uploaded_file).strip()
 else:
-    discharge_text = pasted_text.strip()
+    discharge_text = discharge_text.strip()
 
 # --- Glossary for tooltips ---
 glossary = {
