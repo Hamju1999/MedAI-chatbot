@@ -277,9 +277,6 @@ if st.session_state["run_summary"]:
             combined = " ".join(i for its in sections.values() for i in its)
             lvl = textstat.flesch_kincaid_grade(combined)
             st.markdown(f"*Overall reading level: {lvl:.1f}th grade*")
-        st.markdown("#### Categorization as JSON")
-        st.json(sections)
-        st.download_button("Download Categorization JSON", json.dumps(sections, indent=2), "categorization.json", "application/json")
 
     # Symptom Tracker
     st.markdown("---")
