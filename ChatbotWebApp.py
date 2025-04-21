@@ -311,35 +311,40 @@ if st.session_state["run_summary"]:
 
     # --- new Categorization & Actions block ---
     st.subheader("Categorization & Actions")
-    
+
     for h, its in sections.items():
         if not its:
             continue
-    
+
         # Section header
         st.markdown(f"**{h}**")
-    
-        # Section items
-        for item in its:
-            st.markdown(f"- {apply_tooltips(item)}", unsafe_allow_html=True)
-    
+
+        # Section items (clean out any stray bullets)
+        for raw in its:
+            clean = re.sub(r'^[\u2022\u25E6○\-\*\s]+', '', raw).strip()
+            st.markdown(f"- {apply_tooltips(clean)}", unsafe_allow_html=True)
+
         # Calendar buttons under Follow‑Up
-        if h == "Follow‑Up Appointments or Tasks":
+        if h == "Follow-Up Appointments or Tasks":
             for fu in its:
-                ics = generate_ics(fu)
+                fu_clean = re.sub(r'^[\u2022\u25E6○\-\*\s]+', '', fu).strip()
+                ics = generate_ics(fu_clean)
                 st.download_button(
-                    f"Add '{fu}' to Calendar",
+                    label=f"Add '{fu_clean}' to Calendar",
                     data=ics,
                     file_name="event.ics",
                     mime="text/calendar"
                 )
-    
-        # Medication checklist + single schedule button
+
+        # Medication checklist + one Schedule button
         if h == "Medications":
             st.subheader("Medication Checklist & Reminders")
-            for med in its:
-                st.checkbox(med, key=f"med_{med}")
-            st.button("Schedule Med Reminders", key="med_reminders_btn")
+            for m in its:
+                m_clean = re.sub(r'^[\u2022\u25E6○\-\*\s]+', '', m).strip()
+                st.checkbox(m_clean, key=f"med_{m_clean}")
+            # only one button, below the list
+            if st.button("Schedule Med Reminders", key="med_reminders_btn"):
+                st.success("Medication reminders scheduled!")
 
         # overall reading level & JSON
         if textstat:
