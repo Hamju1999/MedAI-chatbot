@@ -84,7 +84,7 @@ if not pasted_text and not uploaded_file:
     st.stop()
 
 st.markdown("Original Text")
-    st.write(discharge_text)  
+st.write(discharge_text)  
 
 # --- Patient Context & Voice Input ---
 #if "patient_context" not in st.session_state:
