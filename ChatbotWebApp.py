@@ -292,7 +292,11 @@ if st.button("Simplify Discharge Instructions"):
             re.sub(r'\*+', '', itm).strip()
             for itm in items
         ]
-        for sec, items in sections.items()
+        for sec, items in sections.items():
+            sections[sec] = [
+                re.sub(r'\}+$', '', itm).strip()
+                for itm in items
+            ]
     }
     icons = {
         "Simplified Instructions": "",
