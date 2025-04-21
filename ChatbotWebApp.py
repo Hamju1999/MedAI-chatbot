@@ -38,12 +38,6 @@ try:
 except ImportError:
     sr = None
 
-# QR code generation
-try:
-    import qrcode
-except ImportError:
-    qrcode = None
-
 # --- UI setup ---
 st.set_page_config(page_title="Discharge Summary Simplifier")
 st.title("Discharge Summary Simplifier")
@@ -68,7 +62,7 @@ if not api_key and st.session_state["cached_summary"]:
     st.info("Offline mode: Using cached summary.")
 else:
     if not api_key:
-        st.info("🔑 Please provide your OpenRouter API key.")
+        st.info("Please provide your OpenRouter API key.")
         st.stop()
 
 # --- File uploader ---
@@ -165,7 +159,7 @@ def extract_text_from_file(file) -> str:
 
 discharge_text = extract_text_from_file(uploaded_file).strip()
 if not discharge_text:
-    st.error("❌ Could not extract any text. Please upload a valid TXT or PDF.")
+    st.error("Could not extract any text. Please upload a valid TXT or PDF.")
     st.stop()
 
 # --- Glossary for tooltips ---
@@ -219,7 +213,7 @@ if st.button("Simplify Discharge Instructions"):
         simplified_text = st.session_state["cached_summary"]
         sections = st.session_state["cached_sections"]
     else:
-        with st.spinner("🧠 Summarizing…"):
+        with st.spinner("Summarizing…"):
             api_resp = summarize_discharge(
                 discharge_text, reading_level, language, current_context
             )
@@ -262,20 +256,20 @@ if st.button("Simplify Discharge Instructions"):
 
     # Display summary and parsed sections
     st.markdown("---")
-    st.subheader("📄 Formatted Simplified Summary")
+    st.subheader("Formatted Simplified Summary")
     for line in simplified_text.splitlines():
         st.markdown(apply_tooltips(line), unsafe_allow_html=True)
 
     # Parsed Sections & Actions
     st.markdown("---")
-    st.subheader("🔀 Parsed Sections & Actions")
+    st.subheader("Parsed Sections & Actions")
     icons = {
-        "Simplified Instructions": "📝",
-        "Importance": "💡",
-        "Follow-Up Appointments or Tasks": "📅",
-        "Medications": "💊",
-        "Precautions": "⚠️",
-        "References": "📚"
+        "Simplified Instructions": "",
+        "Importance": "",
+        "Follow-Up Appointments or Tasks": "",
+        "Medications": "",
+        "Precautions": "",
+        "References": ""
     }
     if not sections or all(len(v)==0 for v in sections.values()):
         st.info("No structured sections found. Please ensure your summary uses the expected headings.")
@@ -290,7 +284,7 @@ if st.button("Simplify Discharge Instructions"):
                 for fu in items:
                     ics = generate_ics(fu)
                     st.download_button(
-                        f"📅 Add '{fu}' to Calendar",
+                        f"Add '{fu}' to Calendar",
                         data=ics,
                         file_name="event.ics",
                         mime="text/calendar"
@@ -302,35 +296,9 @@ if st.button("Simplify Discharge Instructions"):
                 if st.button("Schedule Med Reminders", key="med_reminders_btn"):
                     st.success("Medication reminders scheduled!")
 
-    # 2) QR Code for Sharing
-    st.markdown("---")
-    # Automatically generate a shareable data URL for the summary
-    summary_html = "<html><body><pre style='font-size:14px;'>" + \
-        simplified_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") + \
-        "</pre></body></html>"
-    b64 = base64.b64encode(summary_html.encode('utf-8')).decode('utf-8')
-    share_url = f"data:text/html;base64,{b64}"
-    # Show the share URL (users can copy it)
-    st.text_area("Share this summary URL:", share_url, height=100)
-    
-    if qrcode:
-        qr_img = qrcode.make(share_url)
-        buf = io.BytesIO()
-        qr_img.save(buf, format="PNG")
-        buf.seek(0)
-        st.image(buf, caption="Scan to open your summary", use_column_width=False)
-        st.download_button(
-            "📥 Download QR Code",
-            data=buf,
-            file_name="summary_qr.png",
-            mime="image/png"
-        )
-    else:
-        st.info("QR code generation requires the `qrcode` package.")
-
     # 3) Parsed Sections & Actions
     st.markdown("---")
-    st.subheader("🔀 Actions & Trackers")
+    st.subheader("Actions & Trackers")
     # Context-aware alerts
     last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
     if last and last.get("pain",0) > 8:
@@ -366,25 +334,13 @@ if st.button("Simplify Discharge Instructions"):
 
     # 9) Privacy & Data Control
     st.markdown("---")
-    st.subheader("🔒 Privacy Dashboard")
+    st.subheader("Privacy Dashboard")
     if st.button("View Stored Data"):
         st.write(st.session_state)
     if st.button("Clear All Data"):
         for k in ["cached_summary","cached_sections","symptoms","faq_log"]:
             st.session_state[k] = [] if isinstance(st.session_state[k], list) else None
         st.success("Data cleared.")
-
-    # 10) Smart FAQ Library
-    if st.expander("📖 Frequently Asked Questions"):
-        for q,a in st.session_state["faq_log"]:
-            st.write(f"**Q:** {q}"); st.write(f"**A:** {a}")
-
-    # 11) Patient Education Videos
-    st.markdown("---")
-    st.subheader("🎥 Patient Education Videos")
-    videos = ["https://youtu.be/example1","https://youtu.be/example2"]
-    for url in videos:
-        st.video(url)
 
     # 12) Mood & Interaction Alerts
     mood = st.select_slider("How are you feeling today?", options=["Good","Okay","Poor"])
@@ -394,7 +350,7 @@ if st.button("Simplify Discharge Instructions"):
     # Symptom Tracker
     st.markdown("---")
     if st.checkbox("Enable Symptom Tracker"):
-        st.subheader("📋 Symptom Tracker")
+        st.subheader("Symptom Tracker")
         d = st.date_input("Date", datetime.date.today())
         pain = st.slider("Pain level", 0, 10, 0)
         swelling = st.slider("Swelling level", 0, 10, 0)
@@ -407,7 +363,7 @@ if st.button("Simplify Discharge Instructions"):
 
     # Feedback to provider
     st.markdown("---")
-    st.subheader("📧 Send Feedback to Provider")
+    st.subheader("Send Feedback to Provider")
     msg = st.text_area("Your message to your care team")
     if st.button("Send Message"):
         st.success("Your message has been sent to your provider.")
@@ -423,10 +379,3 @@ if st.button("Simplify Discharge Instructions"):
     if st.session_state.get("emergency"):
         em = st.session_state["emergency"]
         st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
-
-    # Trusted resources
-    st.markdown("---")
-    st.subheader("🔗 Trusted Resources")
-    links = {"Mayo Clinic":"https://www.mayoclinic.org","NIH":"https://www.nih.gov"}
-    for name, url in links.items():
-        st.markdown(f"- [{name}]({url})")
