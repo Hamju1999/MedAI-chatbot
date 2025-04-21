@@ -91,17 +91,18 @@ else:
         st.info("Please provide your OpenRouter API key.")
         st.stop()
 
-def _on_paste():
-    # whenever the text_area changes, immediately rerun the app
-    st.experimental_rerun()
-
 # --- File uploader ---
-pasted_text = st.text_area(
+current = st.session_state.get("discharge_text", "")
+
+# Count lines and compute pixel height (e.g. ~25px per line)
+line_count = current.count("\n") + 1
+min_h, max_h = 200, 800    # clamp between 200px and 800px
+height_px = min(max(line_count * 25, min_h), max_h)
+discharge_text = st.text_area(
     "Discharge Instructions Text:",
     height=200,
     help="Or just paste your instructions instead of uploading a file",
-    key="pasted_text",    
-    on_change=_on_paste  
+    key="discharge_text"         # ← this makes discharge_text live in session_state
 )
 # 2) …or uploading
 uploaded_file = st.file_uploader(
@@ -109,15 +110,18 @@ uploaded_file = st.file_uploader(
     type=["txt", "pdf"],
     help="Accepted formats: .txt or .pdf"
 )
-if st.session_state.get("pasted_text"):
-    discharge_text = st.session_state["pasted_text"].strip()
-elif uploaded_file:
-    discharge_text = extract_text_from_file(uploaded_file).strip()
+if uploaded_file:
+    extracted = extract_text_from_file(uploaded_file).strip()
+    if not extracted:
+        st.error("Could not extract any text. Please upload a valid file.")
+    else:
+        st.session_state.discharge_text = extracted
+        
+if st.session_state.discharge_text:
+    st.markdown("Original Text")
+    st.write(st.session_state.discharge_text)  
 else:
-    st.info("Please paste text above or upload a file below.")
-    st.stop()
-st.markdown("Original Text")
-st.write(discharge_text)    
+    st.info("Paste or upload your discharge summary above, then click ‘Simplify Discharge Instructions’") 
 
 # --- Patient Context & Voice Input ---
 #if "patient_context" not in st.session_state:
