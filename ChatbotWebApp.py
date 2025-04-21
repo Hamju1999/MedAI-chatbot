@@ -175,11 +175,8 @@ user_locale = locale.getdefaultlocale()[0] or ""
 af_lang = user_locale.split("_")[0].capitalize()
 if af_lang not in ["English","Spanish","Chinese","French","German"]:
     af_lang = None
-col1, col2 = st.columns(2)
-with col1:
-    reading_level = st.slider("Target Reading Level (US Grade)",3,12,6)
-with col2:
-    language = st.selectbox("Output Language", ["English","Spanish","Chinese","French","German"], 0)
+reading_level = st.sidebar.slider("Target Reading Level (US Grade)", min_value=3, max_value=12, value=6)
+language = st.sidebar.selectbox("Output Language", ["English", "Spanish", "Chinese", "French", "German"], index=0)
 
 # --- Glossary ---
 glossary = {
