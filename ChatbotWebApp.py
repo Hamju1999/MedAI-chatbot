@@ -360,12 +360,6 @@ if st.session_state["run_summary"]:
         file_name="app_data.json",
         mime="application/json",
     )
-
-    # Privacy Dashboard
-    st.markdown("---")
-    st.subheader("Privacy Dashboard")
-    if st.button("View Stored Data", key="view_data"):
-        st.json({k: st.session_state[k] for k in st.session_state})
     if st.button("Clear All Data", key="clear_data"):
         for k in list(st.session_state.keys()):
             st.session_state.pop(k,None)
