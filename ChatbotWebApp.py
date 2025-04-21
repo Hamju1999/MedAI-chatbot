@@ -254,19 +254,48 @@ if st.button("Simplify Discharge Instructions"):
             detailed = r2["raw_json"]["choices"][0]["message"]["content"].strip()
             st.session_state["cached_summary"] = detailed
             # parse into sections
-            sections = {h: [] for h in st.session_state["cached_sections"].keys()}
-            cur = None
-            for ln in detailed.splitlines():
-                t = re.sub(r"^[\-\*\s]+", "", ln.strip())
-                for h in sections:
-                    if t.lower().startswith(h.lower()):
-                        cur = h
+            sections = {
+            "Simplified Instructions": [],
+            "Importance": [],
+            "Follow-Up Appointments or Tasks": [],
+            "Medications": [],
+            "Precautions": [],
+            "References": []
+            }
+    
+            # compile flexible header patterns
+            header_patterns = {
+                name: re.compile(rf"^\s*\**\s*{re.escape(name)}\s*:?\s*$", re.IGNORECASE)
+                for name in sections
+            }
+    
+            current = None
+            for line in detailed.splitlines():
+                stripped = line.strip()
+                text = re.sub(r"^[\-\*\s]+", "", stripped)
+    
+                # header detection
+                matched = False
+                for sec_name, pat in header_patterns.items():
+                    if pat.match(text):
+                        current = sec_name
+                        matched = True
                         break
-                else:
-                    if cur and t:
-                        sections[cur].append(re.sub(r"[:\*]+$", "", t).strip())
+                if matched:
+                    continue
+    
+                # content lines
+                if current and text:
+                    clean_text = re.sub(r"[:\*]+$", "", text).strip()
+                    sections[current].append(clean_text)
+    
+            # fallback if no sections found
+            if all(len(items) == 0 for items in sections.values()):
+                sections["Simplified Instructions"] = [
+                    ln.strip() for ln in detailed.splitlines() if ln.strip()
+                ]
+    
             st.session_state["cached_sections"] = sections
-
         st.session_state["run_summary"] = True
 
 # --- Persistent display ---
