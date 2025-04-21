@@ -312,49 +312,59 @@ if st.session_state["run_summary"]:
     for ln in concise.splitlines():
         st.markdown(apply_tooltips(ln), unsafe_allow_html=True)
 
-    # --- new Categorization & Actions block ---
+    # --- Categorization & Actions ---
+    st.markdown("---")
     st.subheader("Categorization & Actions")
-
+    
+    # 1) Render each section without leftover "**" or bullets
     for h, its in sections.items():
         if not its:
             continue
-
-        # Section header
-        st.markdown(f"**{h}**")
-
-        # Section items (clean out any stray bullets)
+    
+        # Clean header (strip any stray asterisks/colons)
+        header_clean = re.sub(r"[:\*]+$", "", h).strip()
+        st.markdown(f"**{header_clean}**")
+    
+        # Render items
         for raw in its:
-            clean = re.sub(r'^[\u2022\u25E6○\-\*\s]+', '', raw).strip()
-            st.markdown(f"- {apply_tooltips(clean)}", unsafe_allow_html=True)
-
-        # Calendar buttons under Follow‑Up
-        if h == "Follow-Up Appointments or Tasks":
-            for fu in its:
-                fu_clean = re.sub(r'^[\u2022\u25E6○\-\*\s]+', '', fu).strip()
-                ics = generate_ics(fu_clean)
+            # strip leading bullets/spaces and trailing colons or asterisks
+            item = re.sub(r"^[\u2022\-\*\s]+", "", raw)
+            item = re.sub(r"[:\*]+$", "", item).strip()
+            st.markdown(f"- {apply_tooltips(item)}", unsafe_allow_html=True)
+    
+        # Follow‑Up calendar buttons
+        if header_clean == "Follow-Up Appointments or Tasks":
+            for raw in its:
+                fu = re.sub(r"^[\u2022\-\*\s]+", "", raw)
+                fu = re.sub(r"[:\*]+$", "", fu).strip()
+                ics = generate_ics(fu)
                 st.download_button(
-                    label=f"Add '{fu_clean}' to Calendar",
+                    f"Add '{fu}' to Calendar",
                     data=ics,
                     file_name="event.ics",
                     mime="text/calendar"
                 )
-
-        # Medication checklist + one Schedule button
-        if h == "Medications":
-            st.subheader("Medication Checklist & Reminders")
-            for m in its:
-                m_clean = re.sub(r'^[\u2022\u25E6○\-\*\s]+', '', m).strip()
-                st.checkbox(m_clean, key=f"med_{m_clean}")
-            # only one button, below the list
-            if st.button("Schedule Med Reminders", key="med_reminders_btn"):
-                st.success("Medication reminders scheduled!")
-
-        # overall reading level & JSON
-        if textstat:
-            combined = " ".join(i for its in sections.values() for i in its)
-            lvl = textstat.flesch_kincaid_grade(combined)
-            st.markdown(f"*Overall reading level: {lvl:.1f}th grade*")
-
+    
+    # 2) Medication checklist only once, after loop
+    meds = sections.get("Medications", [])
+    if meds:
+        st.markdown("")  # spacing
+        st.subheader("Medication Checklist & Reminders")
+        for raw in meds:
+            m = re.sub(r"^[\u2022\-\*\s]+", "", raw)
+            m = re.sub(r"[:\*]+$", "", m).strip()
+            st.checkbox(m, key=f"med_{m}")
+        if st.button("Schedule Med Reminders", key="med_reminders_btn"):
+            st.success("Medication reminders scheduled!")
+    
+    # 3) Overall reading level once at the end
+    if textstat:
+        all_text = " ".join(
+            re.sub(r"[:\*]+$", "", re.sub(r"^[\u2022\-\*\s]+","", itm)).strip()
+            for items in sections.values() for itm in items
+        )
+        grade = textstat.flesch_kincaid_grade(all_text)
+        st.markdown(f"*Overall reading level: {grade:.1f}th grade*")
     # --- Symptom Tracker with auto‑extracted symptoms ---
     st.markdown("---")
     st.subheader("Symptom Tracker")
