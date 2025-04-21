@@ -135,7 +135,42 @@ show_details = st.sidebar.checkbox("Show Detailed Medical Jargon")
 font_size = st.sidebar.slider("Font size", 12,24,16)
 high_contrast = st.sidebar.checkbox("High Contrast Mode")
 if high_contrast:
-    st.markdown("<style>body{background:#000;color:#fff;}</style>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <style>
+        /* Root containers */
+        html, body, .stApp, [data-testid="stSidebar"] {
+            background-color: #000 !important;
+            color: #fff !important;
+        }
+        /* All text elements */
+        .stApp * {
+            color: #fff !important;
+            background-color: transparent !important;
+        }
+        /* Inputs, buttons, sliders, text areas */
+        .stButton button,
+        .stDownloadButton button,
+        .stTextInput>div>input,
+        .stTextArea>div>textarea,
+        .stSlider>div {
+            background-color: #333 !important;
+            color: #fff !important;
+            border: 1px solid #555 !important;
+        }
+        /* Links */
+        a {
+            color: #0ff !important;
+        }
+        /* Tables and dataframes */
+        .stDataFrame, .stTable {
+            background-color: #000 !important;
+            color: #fff !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 st.markdown(f"<style>*{{font-size:{font_size}px}}</style>", unsafe_allow_html=True)
 user_locale = locale.getdefaultlocale()[0] or ""
 af_lang = user_locale.split("_")[0].capitalize()
