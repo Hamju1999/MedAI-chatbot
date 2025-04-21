@@ -6,7 +6,6 @@ import datetime
 import locale
 import base64
 import requests
-import streamlit
 import streamlit as st
 import pandas as pd
 
@@ -285,15 +284,9 @@ if st.button("Simplify Discharge Instructions"):
     for line in concise_text.splitlines():
         st.markdown(apply_tooltips(line), unsafe_allow_html=True)
 
-    # Cleaning Text
-    def clean_text(text: str) -> str:
-        text = re.sub(r"\s+", " ", text)
-        text = re.sub(r"^[\-\*\s]+|[:\*\s]+$", "", text)
-        return text.strip()
-
     # Parsed Sections & Actions
-    streamlit.markdown("---")
-    streamlit.subheader("Categorization & Actions")
+    st.markdown("---")
+    st.subheader("Categorization & Actions")
     icons = {
         "Simplified Instructions": "",
         "Importance": "",
@@ -302,40 +295,30 @@ if st.button("Simplify Discharge Instructions"):
         "Precautions": "",
         "References": ""
     }
-    if not sections or all(len(v) == 0 for v in sections.values()):
-        streamlit.info("No structured sections found. Please ensure your summary uses the expected headings.")
+    if not sections or all(len(v)==0 for v in sections.values()):
+        st.info("No structured sections found. Please ensure your summary uses the expected headings.")
     else:
         for sec, items in sections.items():
             if not items:
                 continue
-    
-            icon = clean_text(icons.get(sec, ""))
-            header = clean_text(sec)
-            # call the module function directly to avoid shadowing
-            streamlit.markdown(f"**{icon} {header}**", unsafe_allow_html=True)
-    
+            st.markdown(f"{icons.get(sec,'')} {sec}**")
             for itm in items:
-                cleaned_item = clean_text(itm)
-                streamlit.markdown(f"- {apply_tooltips(cleaned_item)}", unsafe_allow_html=True)
-    
+                st.markdown(f"- {apply_tooltips(itm)}", unsafe_allow_html=True)
             if sec == "Follow-Up Appointments or Tasks":
                 for fu in items:
-                    cleaned_fu = clean_text(fu)
-                    ics = generate_ics(cleaned_fu)
-                    streamlit.download_button(
-                        f"Add '{cleaned_fu}' to Calendar",
+                    ics = generate_ics(fu)
+                    st.download_button(
+                        f"Add '{fu}' to Calendar",
                         data=ics,
                         file_name="event.ics",
                         mime="text/calendar"
                     )
-    
             if sec == "Medications":
-                streamlit.subheader("Medication Checklist & Reminders")
+                st.subheader("Medication Checklist & Reminders")
                 for med in items:
-                    cleaned_med = clean_text(med)
-                    streamlit.checkbox(cleaned_med, key=cleaned_med)
-                if streamlit.button("Schedule Med Reminders", key="med_reminders_btn"):
-                    streamlit.success("Medication reminders scheduled!")
+                    st.checkbox(med, key=med)
+                if st.button("Schedule Med Reminders", key="med_reminders_btn"):
+                    st.success("Medication reminders scheduled!")
 
     # 3) Parsed Sections & Actions
     st.markdown("---")
