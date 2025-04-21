@@ -382,19 +382,23 @@ if st.session_state["run_summary"]:
     st.markdown("---")
     st.subheader("Actions & Trackers")
 
-    # High‐pain alert
-    last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
-    if last and last.get("pain", 0) > 8:
-        st.warning("High pain detected – consider contacting your provider.")
+    # High‑pain alert
+    if st.session_state["symptoms"]:
+        last = st.session_state["symptoms"][-1]
+        if last.get("pain", 0) > 8:
+            st.warning("High pain detected – consider contacting your provider.")
 
-    # Recovery timeline
+    # Recovery Timeline
     if st.checkbox("Show Recovery Timeline", key="show_timeline"):
-        df = pd.DataFrame(st.session_state["symptoms"])
-        df["date"] = pd.to_datetime(df["date"])
-        chart = df.set_index("date")["pain"]
-        st.line_chart(chart)
+        if st.session_state["symptoms"]:
+            df = pd.DataFrame(st.session_state["symptoms"])
+            df["date"] = pd.to_datetime(df["date"])
+            df = df.set_index("date")[["pain", "swelling"]]
+            st.line_chart(df)
+        else:
+            st.info("No symptom data yet.")
 
-    # Download symptom log directly
+    # Download Symptom Log
     if st.session_state["symptoms"]:
         csv_data = pd.DataFrame(st.session_state["symptoms"]).to_csv(index=False)
         st.download_button(
@@ -413,59 +417,63 @@ if st.session_state["run_summary"]:
     if st.checkbox("Enable caregiver access", key="enable_caregiver"):
         email = st.text_input("Caregiver email:", key="caregiver_email")
         if email and st.button("Generate share link", key="gen_share"):
-            # simulate link generation
             link = f"https://yourapp.example.com/share?email={email}"
             st.success(f"Shareable link: {link}")
 
     # SMS & Push Reminders
     phone = st.text_input("Phone number for SMS reminders:", key="sms_phone")
     if phone and st.button("Enable SMS Reminders", key="enable_sms"):
-        # simulate scheduling
         st.success(f"SMS reminders will be sent to {phone}")
-
-    # Privacy Dashboard
-    st.markdown("---")
-    st.subheader("Privacy Dashboard")
-    if st.button("View Stored Data"):
-        st.write(st.session_state)
-    if st.button("Clear All Data"):
-        for k in ["cached_summary", "cached_sections", "symptoms", "faq_log"]:
-            st.session_state[k] = [] if isinstance(st.session_state[k], list) else None
-        st.success("Data cleared.")
-
-    # Mood & Interaction Alerts
-    mood = st.select_slider("How are you feeling today?", options=["Good","Okay","Poor"])
-    if mood == "Poor":
-        st.warning("We noticed you feel poor—review precautions or contact your provider.")
 
     # Symptom Tracker
     st.markdown("---")
-    if st.checkbox("Enable Symptom Tracker"):
-        st.subheader("Symptom Tracker")
-        d = st.date_input("Date", datetime.date.today())
-        pain = st.slider("Pain level", 0, 10, 0)
-        swelling = st.slider("Swelling level", 0, 10, 0)
-        if st.button("Log Symptom"):
-            st.session_state["symptoms"].append({"date": str(d), "pain": pain, "swelling": swelling})
-            st.success("Symptom logged")
-        if st.session_state.get("symptoms"):
-            st.write(st.session_state["symptoms"])
+    st.subheader("Symptom Tracker")
+    d = st.date_input("Date", datetime.date.today(), key="symptom_date")
+    pain = st.slider("Pain level", 0, 10, 0, key="symptom_pain")
+    swelling = st.slider("Swelling level", 0, 10, 0, key="symptom_swelling")
+    if st.button("Log Symptom", key="symptom_log_btn"):
+        entry = {"date": str(d), "pain": pain, "swelling": swelling}
+        st.session_state["symptoms"].append(entry)
+        st.success("Symptom logged")
+    if st.session_state["symptoms"]:
+        st.dataframe(pd.DataFrame(st.session_state["symptoms"]))
 
     # Send Feedback
     st.markdown("---")
     st.subheader("Send Feedback to Provider")
-    msg = st.text_area("Your message to your care team")
-    if st.button("Send Message"):
+    feedback = st.text_area("Your message to your care team", key="feedback_msg")
+    if st.button("Send Message", key="send_feedback_btn"):
+        st.session_state["faq_log"].append(feedback)
         st.success("Your message has been sent to your provider.")
+
+    # Privacy Dashboard
+    st.markdown("---")
+    st.subheader("Privacy Dashboard")
+    if st.button("View Stored Data", key="view_data_btn"):
+        st.json({k: st.session_state[k] for k in st.session_state})
+    if st.button("Clear All Data", key="clear_data_btn"):
+        for k in ["cached_summary","cached_sections","cached_concise","run_summary","symptoms","faq_log","emergency"]:
+            st.session_state.pop(k, None)
+        st.success("Data cleared.")
+
+    # Mood & Interaction Alerts
+    st.markdown("---")
+    mood = st.select_slider(
+        "How are you feeling today?",
+        options=["Good","Okay","Poor"],
+        key="mood_slider"
+    )
+    if mood == "Poor":
+        st.warning("We noticed you feel poor—review precautions or contact your provider.")
 
     # Emergency Contacts
     st.markdown("---")
     st.subheader("🚨 Emergency Contacts")
-    ec_name = st.text_input("Contact Name")
-    ec_num = st.text_input("Contact Number")
-    if st.button("Save Contact"):
+    ec_name = st.text_input("Contact Name", key="ec_name_input")
+    ec_num = st.text_input("Contact Number", key="ec_num_input")
+    if st.button("Save Contact", key="save_ec_btn"):
         st.session_state["emergency"] = {"name": ec_name, "number": ec_num}
         st.success("Emergency contact saved")
-    if st.session_state.get("emergency"):
+    if "emergency" in st.session_state:
         em = st.session_state["emergency"]
         st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
