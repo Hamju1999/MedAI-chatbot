@@ -333,15 +333,15 @@ if st.session_state["run_summary"]:
         text = re.sub(r'[:\*]+$', '', text).strip()
         st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
     
-            # Calendar button only for Follow‑Up items mentioning "visit"
-            if header_clean == "Follow-Up Appointments or Tasks" and "visit" in text.lower():
-                ics = generate_ics(text)
-                st.download_button(
-                    label=f"Add '{text}' to Calendar",
-                    data=ics,
-                    file_name="event.ics",
-                    mime="text/calendar"
-                )
+        # Calendar button only for Follow‑Up items mentioning "visit"
+        if header_clean == "Follow-Up Appointments or Tasks" and "visit" in text.lower():
+            ics = generate_ics(text)
+            st.download_button(
+                label=f"Add '{text}' to Calendar",
+                data=ics,
+                file_name="event.ics",
+                mime="text/calendar"
+            )
 
     # 2) Medication checklist
     meds = sections.get("Medications", [])
