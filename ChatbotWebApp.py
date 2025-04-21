@@ -324,14 +324,14 @@ if st.session_state["run_summary"]:
         header_clean = raw_header.replace("*", "").rstrip(":").strip()
         st.markdown(f"**{header_clean}**")
     
-        for raw in its:
-            # strip bullets/spaces
-            text = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-            # remove any leading "Task:" prefix
-            text = re.sub(r'^(Task:)\s*', '', text, flags=re.IGNORECASE)
-            # strip trailing colons & stars
-            text = re.sub(r'[:\*]+$', '', text).strip()
-            st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
+            for raw in its:
+                # strip bullets/spaces
+                text = re.sub(r'^[\u2022\-\*\s]+', '', raw)
+                # remove any leading "Task:" prefix
+                text = re.sub(r'^(Task:)\s*', '', text, flags=re.IGNORECASE)
+                # strip trailing colons & stars
+                text = re.sub(r'[:\*]+$', '', text).strip()
+                st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
     
             # Calendar button only for Follow‑Up items mentioning "visit"
             if header_clean == "Follow-Up Appointments or Tasks" and "visit" in text.lower():
