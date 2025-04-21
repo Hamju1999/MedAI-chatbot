@@ -312,64 +312,57 @@ if st.session_state["run_summary"]:
     for ln in concise.splitlines():
         st.markdown(apply_tooltips(ln), unsafe_allow_html=True)
 
-    # --- Categorization & Actions ---
+    # Categorization & Actions
     st.markdown("---")
     st.subheader("Categorization & Actions")
-    
-    # 1) Render each section without leftover "**" or bullets
-    for h, its in sections.items():
-        if not its:
+
+    # 1) Render each section, cleanly
+    for raw_header, items in sections.items():
+        if not items:
             continue
-    
-        # Clean header (strip any stray asterisks/colons)
-        header_clean = re.sub(r"[:\*]+$", "", h).strip()
+
+        # clean header text (strip colons & stars)
+        header_clean = re.sub(r"[:\*]+$", "", raw_header).strip()
         st.markdown(f"**{header_clean}**")
-    
-        # Render items
-        for raw in its:
-            # strip bullets/spaces
-            item = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-            # strip Task: prefix
-            item = re.sub(r'^(Task:?\**)\s*', '', item, flags=re.IGNORECASE)
-            # strip trailing colons or stars
-            item = re.sub(r'[:\*]+$', '', item).strip()
-            st.markdown(f"- {apply_tooltips(item)}", unsafe_allow_html=True)
-    
-            # Follow‑Up calendar buttons (and strip any leading "Task:" prefix)
-            if header_clean == "Follow-Up Appointments or Tasks":
-                for raw in its:
-                    # clean off bullets and any "Task:" prefix
-                    fu = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-                    fu = re.sub(r'^(Task:?\**)\s*', '', fu, flags=re.IGNORECASE)
-                    fu = re.sub(r'[:\*]+$', '', fu).strip()
-            
-                    # only show a calendar button if the instruction mentions "visit"
-                    if "visit" in fu.lower():
-                        ics = generate_ics(fu)
-                        st.download_button(
-                            label=f"Add '{fu}' to Calendar",
-                            data=ics,
-                            file_name="event.ics",
-                            mime="text/calendar"
-                        )
-                
-    # 2) Medication checklist only once, after loop
+
+        # render each bullet
+        for raw in items:
+            # strip any leading bullets/spaces
+            text = re.sub(r'^[\u2022\-\*\s]+', '', raw)
+            # strip trailing colons & stars
+            text = re.sub(r'[:\*]+$', '', text).strip()
+            # remove any leading "Task:" if present
+            text = re.sub(r'^(Task:?\**)\s*', '', text, flags=re.IGNORECASE)
+            st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
+
+            # follow‑up calendar button if this is a visit
+            if header_clean == "Follow-Up Appointments or Tasks" and "visit" in text.lower():
+                ics = generate_ics(text)
+                st.download_button(
+                    label=f"Add '{text}' to Calendar",
+                    data=ics,
+                    file_name="event.ics",
+                    mime="text/calendar"
+                )
+
+    # 2) Medication checklist
     meds = sections.get("Medications", [])
     if meds:
         st.markdown("")  # spacing
         st.subheader("Medication Checklist & Reminders")
         for raw in meds:
-            m = re.sub(r"^[\u2022\-\*\s]+", "", raw)
-            m = re.sub(r"[:\*]+$", "", m).strip()
+            m = re.sub(r'^[\u2022\-\*\s]+', '', raw)
+            m = re.sub(r'[:\*]+$', '', m).strip()
             st.checkbox(m, key=f"med_{m}")
         if st.button("Schedule Med Reminders", key="med_reminders_btn"):
             st.success("Medication reminders scheduled!")
-    
-    # 3) Overall reading level once at the end
+
+    # 3) Overall reading level (once)
     if textstat:
         all_text = " ".join(
-            re.sub(r"[:\*]+$", "", re.sub(r"^[\u2022\-\*\s]+","", itm)).strip()
-            for items in sections.values() for itm in items
+            re.sub(r'^[\u2022\-\*\s]+', '',
+                   re.sub(r'[:\*]+$', '', itm)).strip()
+            for its in sections.values() for itm in its
         )
         grade = textstat.flesch_kincaid_grade(all_text)
         st.markdown(f"*Overall reading level: {grade:.1f}th grade*")
