@@ -184,7 +184,7 @@ def generate_concise_summary(text: str, lang: str) -> dict:
     )
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {"model": "deepseek/deepseek-r1", "messages": [{"role": "user","content": prompt}]}
+    payload = {"model": "deepseek/deepseek-r1", "messages": [{"role": "user","content": prompt}], "temperature": 0.0, "top_p": 1.0}
     resp = requests.post(url, headers=headers, json=payload)
     return {
         "status": resp.status_code,
@@ -208,7 +208,7 @@ def summarize_discharge(text: str, reading_lvl: int, lang: str) -> dict:
     )
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {"model": "deepseek/deepseek-r1", "messages": [{"role": "user","content": prompt}]}
+    payload = {"model": "deepseek/deepseek-r1", "messages": [{"role": "user","content": prompt}], "temperature": 0.0, "top_p": 1.0}
     resp = requests.post(url, headers=headers, json=payload)
     return {
         "status": resp.status_code,
