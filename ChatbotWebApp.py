@@ -301,18 +301,22 @@ if st.button("Simplify Discharge Instructions"):
         "Precautions": "",
         "References": ""
     }
-    if not sections or all(len(v)==0 for v in sections.values()):
+    if not sections or all(len(v) == 0 for v in sections.values()):
         st.info("No structured sections found. Please ensure your summary uses the expected headings.")
     else:
         for sec, items in sections.items():
             if not items:
                 continue
+    
+            # clean both icon and section name
             icon = clean_text(icons.get(sec, ""))
             header = clean_text(sec)
             st.markdown(f"**{icon} {header}**")
+    
             for itm in items:
                 cleaned_item = clean_text(itm)
                 st.markdown(f"- {apply_tooltips(cleaned_item)}", unsafe_allow_html=True)
+    
             if sec == "Follow-Up Appointments or Tasks":
                 for fu in items:
                     cleaned_fu = clean_text(fu)
@@ -323,6 +327,7 @@ if st.button("Simplify Discharge Instructions"):
                         file_name="event.ics",
                         mime="text/calendar"
                     )
+    
             if sec == "Medications":
                 st.subheader("Medication Checklist & Reminders")
                 for med in items:
