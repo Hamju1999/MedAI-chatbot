@@ -245,7 +245,7 @@ if st.button("Simplify Discharge Instructions"):
         sections = st.session_state["cached_sections"]
     else:
         with st.spinner("Summarizing discharge…"):
-            api_resp2 = summarize_discharge(discharge_text, language)
+            api_resp2 = summarize_discharge(discharge_text, reading_level, language, current_context)
         if api_resp2["status"] != 200:
             st.error(f"API returned status {api_resp2['status']}")
             st.stop()
