@@ -336,22 +336,23 @@ if st.session_state["run_summary"]:
             st.markdown(f"- {apply_tooltips(item)}", unsafe_allow_html=True)
     
             # Follow‑Up calendar buttons (and strip any leading "Task:" prefix)
-            if header_clean == "Follow‑Up Appointments or Tasks":
+            if header_clean == "Follow-Up Appointments or Tasks":
                 for raw in its:
-                    # 1) remove bullets/spaces
+                    # clean off bullets and any "Task:" prefix
                     fu = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-                    # 2) remove leading "Task:" or "Task:**"
                     fu = re.sub(r'^(Task:?\**)\s*', '', fu, flags=re.IGNORECASE)
-                    # 3) strip any trailing colons or stars
                     fu = re.sub(r'[:\*]+$', '', fu).strip()
-                    ics = generate_ics(fu)
-                    st.download_button(
-                        label=f"Add '{fu}' to Calendar",
-                        data=ics,
-                        file_name="event.ics",
-                        mime="text/calendar"
-                    )
-    
+            
+                    # only show a calendar button if the instruction mentions "visit"
+                    if "visit" in fu.lower():
+                        ics = generate_ics(fu)
+                        st.download_button(
+                            label=f"Add '{fu}' to Calendar",
+                            data=ics,
+                            file_name="event.ics",
+                            mime="text/calendar"
+                        )
+                
     # 2) Medication checklist only once, after loop
     meds = sections.get("Medications", [])
     if meds:
