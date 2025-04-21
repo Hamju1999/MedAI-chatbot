@@ -179,7 +179,7 @@ def apply_tooltips(line: str) -> str:
 # Concise Summary
 def generate_concise_summary(text: str, lang: str) -> dict:
     prompt = (
-        f"Simplify the following discharge summary into a concise, include all essential information related to the patient, patient-friendly overview.\n"
+        f"Simplify the following discharge summary into a concise, include all essential information related to the patient especially the diagnose and why is it important, patient-friendly overview.\n"
         f"Output only a short paragraph (no sections):\n\n\"\"\"{text}\"\"\""
     )
     url = "https://openrouter.ai/api/v1/chat/completions"
