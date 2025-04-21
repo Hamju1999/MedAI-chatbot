@@ -75,9 +75,9 @@ if not uploaded_file:
     st.stop()
 
 # --- Patient Context & Voice Input ---
-if "patient_context" not in st.session_state:
-    st.session_state["patient_context"] = ""
-patient_context_input = st.text_input("Enter patient context (optional):")
+#if "patient_context" not in st.session_state:
+    #st.session_state["patient_context"] = ""
+#patient_context_input = st.text_input("Enter patient context (optional):")
 audio_file = st.file_uploader(
     "Or upload voice note for context (mp3/wav)",
     type=["mp3","wav"],
@@ -90,15 +90,15 @@ if audio_file and sr:
     try:
         transcribed = r.recognize_google(audio)
         st.write(f"Transcribed voice note: {transcribed}")
-        patient_context_input = transcribed
+        #patient_context_input = transcribed
     except Exception:
         st.warning("Could not transcribe audio.")
 elif audio_file:
     st.info("`speech_recognition` not installed for transcription.")
-if st.button("Apply Context", key="apply_context_btn"):
-    st.session_state["patient_context"] = patient_context_input
-    st.success("Patient context applied successfully.")
-current_context = st.session_state["patient_context"]
+#if st.button("Apply Context", key="apply_context_btn"):
+    #st.session_state["patient_context"] = patient_context_input
+    #st.success("Patient context applied successfully.")
+#current_context = st.session_state["patient_context"]
 
 # --- Dynamic Detail Level ---
 show_details = st.sidebar.checkbox("Show Detailed Medical Jargon")
@@ -193,9 +193,9 @@ def generate_concise_summary(text: str, lang: str) -> dict:
     }
 
 # --- LLM call ---
-def summarize_discharge(text: str, reading_lvl: int, lang: str, patient_context: str) -> dict:
+def summarize_discharge(text: str, reading_lvl: int, lang: str) -> dict:
     prompt = (
-        f"Patient Context (if any): {patient_context}\n"
+        #f"Patient Context (if any): {patient_context}\n"
         f"The following is a hospital discharge summary. Simplify it to a {reading_lvl}th-grade reading level in {lang}.\n"
         "Break into sections with these headings:\n"
         "- **Simplified Instructions:** bullet-points\n"
@@ -246,7 +246,7 @@ if st.button("Simplify Discharge Instructions"):
         sections = st.session_state["cached_sections"]
     else:
         with st.spinner("Summarizing discharge…"):
-            api_resp2 = summarize_discharge(discharge_text, reading_level, language, current_context)
+            api_resp2 = summarize_discharge(discharge_text, reading_level, language)
         if api_resp2["status"] != 200:
             st.error(f"API returned status {api_resp2['status']}")
             st.stop()
