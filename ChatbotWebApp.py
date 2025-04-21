@@ -334,10 +334,6 @@ if st.button("Simplify Discharge Instructions"):
             if not items:
                 continue
             st.markdown(f"{icons.get(sec,'')} {sec}")
-            if textstat:
-                section_text = " ".join(items)
-                grade = textstat.flesch_kincaid_grade(section_text)
-                st.markdown(f"*Reading level: {grade:.1f}th grade*", unsafe_allow_html=True)
             for itm in items:
                 st.markdown(f"- {apply_tooltips(itm)}", unsafe_allow_html=True)
             if sec == "Follow-Up Appointments or Tasks":
@@ -356,6 +352,13 @@ if st.button("Simplify Discharge Instructions"):
                 if st.button("Schedule Med Reminders", key="med_reminders_btn"):
                     st.success("Medication reminders scheduled!")
 
+        if textstat:
+        combined = " ".join(
+            itm for items in sections.values() for itm in items
+        )
+        overall_grade = textstat.flesch_kincaid_grade(combined)
+        st.markdown(f"*Overall reading level: {overall_grade:.1f}th grade*", unsafe_allow_html=True)
+    
     # 3) Parsed Sections & Actions
     st.markdown("---")
     st.subheader("Actions & Trackers")
