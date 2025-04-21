@@ -301,7 +301,7 @@ if st.button("Simplify Discharge Instructions"):
         for sec, items in sections.items():
             if not items:
                 continue
-            st.markdown(f"{icons.get(sec,'')} {sec}**")
+            st.markdown(f"{icons.get(sec,'')} {sec}")
             for itm in items:
                 st.markdown(f"- {apply_tooltips(itm)}", unsafe_allow_html=True)
             if sec == "Follow-Up Appointments or Tasks":
