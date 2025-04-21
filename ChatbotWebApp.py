@@ -280,22 +280,56 @@ if st.session_state["run_summary"]:
             lvl = textstat.flesch_kincaid_grade(combined)
             st.markdown(f"*Overall reading level: {lvl:.1f}th grade*")
 
-    # Symptom Tracker
+    # --- Symptom Tracker with auto‑extracted symptoms ---
     st.markdown("---")
     st.subheader("Symptom Tracker")
+    
+    # 1) extract symptom keywords from the text
+    COMMON_SYMPTOMS = ["pain", "swelling", "fever", "nausea", "headache", "dizziness", "fatigue"]
+    found = [
+        term for term in COMMON_SYMPTOMS
+        if re.search(rf"\b{re.escape(term)}\b", discharge_text, flags=re.IGNORECASE)
+    ]
+    
+    if found:
+        st.markdown("**Detected symptoms in summary:** " + ", ".join(found).capitalize())
+        selected = st.multiselect(
+            "Select symptoms to log",
+            options=[s.capitalize() for s in found],
+            default=[s.capitalize() for s in found],
+            key="selected_symptoms"
+        )
+    else:
+        st.info("No common symptoms detected in the summary.")
+        selected = []
+    
+    # 2) date input
     d = st.date_input("Date", datetime.date.today(), key="symp_date")
-    pain = st.slider("Pain",0,10,0,key="symp_pain")
-    swelling = st.slider("Swelling",0,10,0,key="symp_swelling")
-    if st.button("Log Symptom", key="log_symp"):
-        st.session_state["symptoms"].append({"date":str(d),"pain":pain,"swelling":swelling})
-        st.success("Logged")
+    
+    # 3) sliders for each selected symptom
+    levels = {}
+    for sym in selected:
+        key = f"level_{sym.lower()}"
+        levels[sym] = st.slider(
+            f"{sym} level",
+            min_value=0,
+            max_value=10,
+            value=0,
+            key=key
+        )
+    
+    # 4) log button
+    if st.button("Log Symptoms", key="log_symptoms_btn"):
+        entry = {"date": str(d)}
+        for sym, lvl in levels.items():
+            entry[sym.lower()] = lvl
+        st.session_state["symptoms"].append(entry)
+        st.success("Symptoms logged!")
+    
+    # 5) show existing log
     if st.session_state["symptoms"]:
-        st.dataframe(pd.DataFrame(st.session_state["symptoms"]))
-    # high‑pain
-    if st.session_state["symptoms"]:
-        last = st.session_state["symptoms"][-1]
-        if last.get("pain",0)>8:
-            st.warning("High pain detected.")
+        df = pd.DataFrame(st.session_state["symptoms"])
+        st.dataframe(df)
     # timeline
     if st.checkbox("Show Recovery Timeline", key="show_timeline"):
         if st.session_state["symptoms"]:
