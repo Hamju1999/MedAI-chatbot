@@ -6,6 +6,7 @@ import datetime
 import locale
 import base64
 import requests
+import streamlit
 import streamlit as st
 import pandas as pd
 
