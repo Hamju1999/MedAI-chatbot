@@ -353,11 +353,11 @@ if st.button("Simplify Discharge Instructions"):
                     st.success("Medication reminders scheduled!")
 
         if textstat:
-        combined = " ".join(
-            itm for items in sections.values() for itm in items
-        )
-        overall_grade = textstat.flesch_kincaid_grade(combined)
-        st.markdown(f"*Overall reading level: {overall_grade:.1f}th grade*", unsafe_allow_html=True)
+            combined = " ".join(
+                itm for items in sections.values() for itm in items
+            )
+            overall_grade = textstat.flesch_kincaid_grade(combined)
+            st.markdown(f"*Overall reading level: {overall_grade:.1f}th grade*", unsafe_allow_html=True)
     
     # 3) Parsed Sections & Actions
     st.markdown("---")
