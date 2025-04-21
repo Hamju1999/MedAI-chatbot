@@ -176,6 +176,21 @@ def apply_tooltips(line: str) -> str:
         )
     return line
 
+# Concise Summary
+def generate_concise_summary(text: str, lang: str) -> dict:
+    prompt = (
+        f"The following is a hospital discharge summary. Provide a concise, succinctly simplified summary with factual accuracy, using clear, patient-friendly language in {lang}:\n""""{text}"""
+    )
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    payload = {"model": "deepseek/deepseek-r1", "messages": [{"role": "user","content": prompt}]}
+    resp = requests.post(url, headers=headers, json=payload)
+    return {
+        "status": resp.status_code,
+        "raw_json": resp.json() if resp.headers.get("content-type",""
+            ).startswith("application/json") else resp.text
+    }
+
 # --- LLM call ---
 def summarize_discharge(text: str, reading_lvl: int, lang: str, patient_context: str) -> dict:
     prompt = (
@@ -208,26 +223,38 @@ def generate_ics(event_title: str) -> str:
 
 # --- Main action ---
 if st.button("Simplify Discharge Instructions"):
-    # Fetch or compute summary
-    if not api_key and st.session_state["cached_summary"]:
-        simplified_text = st.session_state["cached_summary"]
-        sections = st.session_state["cached_sections"]
+        # Concise summary
+    if not api_key and st.session_state["cached_concise"]:
+        concise_text = st.session_state["cached_concise"]
     else:
-        with st.spinner("Summarizing…"):
-            api_resp = summarize_discharge(
-                discharge_text, reading_level, language, current_context
-            )
+        with st.spinner("Generating concise summary…"):
+            api_resp = generate_concise_summary(discharge_text, language)
         if api_resp["status"] != 200:
             st.error(f"API returned status {api_resp['status']}")
             st.stop()
         choices = api_resp["raw_json"].get("choices", [])
-        simplified_text = (
+        concise_text = (
             choices[0].get("message", {}).get("content", "").strip()
             if choices else ""
         )
-        # Cache results
-        st.session_state["cached_summary"] = simplified_text
+        st.session_state["cached_concise"] = concise_text
 
+    # Detailed simplified summary (cached, not displayed)
+    if not api_key and st.session_state["cached_summary"]:
+        simplified_text = st.session_state["cached_summary"]
+        sections = st.session_state["cached_sections"]
+    else:
+        with st.spinner("Summarizing discharge…"):
+            api_resp2 = summarize_discharge(discharge_text, language)
+        if api_resp2["status"] != 200:
+            st.error(f"API returned status {api_resp2['status']}")
+            st.stop()
+        choices2 = api_resp2["raw_json"].get("choices", [])
+        simplified_text = (
+            choices2[0].get("message", {}).get("content", "").strip()
+            if choices2 else ""
+        )
+        st.session_state["cached_summary"] = simplified_text
         # Parse sections with improved detection
         sections = {
             "Simplified Instructions": [],
@@ -240,24 +267,21 @@ if st.button("Simplify Discharge Instructions"):
         current = None
         for line in simplified_text.splitlines():
             stripped = line.strip()
-            # remove leading bullets/markdown
             text = re.sub(r"^[\-\*\s]+", "", stripped)
-            # detect header by matching start
             for sec_name in sections:
                 if text.lower().startswith(sec_name.lower()):
                     current = sec_name
                     break
             else:
                 if current and text:
-                    # remove any trailing colons or bold markers
                     clean_text = re.sub(r"[:\*]+$", "", text).strip()
                     sections[current].append(clean_text)
         st.session_state["cached_sections"] = sections
 
     # Display summary and parsed sections
     st.markdown("---")
-    st.subheader("Formatted Simplified Summary")
-    for line in simplified_text.splitlines():
+    st.subheader("Simplified Summary")
+    for line in concise_text.splitlines():
         st.markdown(apply_tooltips(line), unsafe_allow_html=True)
 
     # Parsed Sections & Actions
