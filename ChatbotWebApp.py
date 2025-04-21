@@ -324,7 +324,7 @@ if st.session_state["run_summary"]:
 
     # --- Emergency Contacts ---
     st.markdown("---")
-    st.subheader("🚨 Emergency Contacts")
+    st.subheader("Emergency Contacts")
     
     with st.form("emergency_form"):
         ec_name = st.text_input("Contact Name", key="ec_name_input")
@@ -337,7 +337,7 @@ if st.session_state["run_summary"]:
     # Always show the saved contact below
     if "emergency" in st.session_state:
         em = st.session_state["emergency"]
-        st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
+        st.markdown(f"[Call {em['name']}](tel:{em['number']})")
 
     # ——— Export All Data as JSON ———
     st.markdown("---")
