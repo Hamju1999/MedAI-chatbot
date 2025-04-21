@@ -92,7 +92,8 @@ else:
         st.stop()
 
 def _on_paste():
-    pass
+    # whenever the text_area changes, immediately rerun the app
+    st.experimental_rerun()
 
 # --- File uploader ---
 pasted_text = st.text_area(
