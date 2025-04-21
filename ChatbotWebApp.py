@@ -10,18 +10,6 @@ import json
 import streamlit as st
 import pandas as pd
 
-# Email & SMS clients
-try:
-    import smtplib
-    from email.message import EmailMessage
-except ImportError:
-    smtplib = None
-
-try:
-    from twilio.rest import Client as TwilioClient
-except ImportError:
-    TwilioClient = None
-
 # optional readability scoring
 try:
     import textstat
@@ -351,6 +339,28 @@ if st.session_state["run_summary"]:
     if "emergency" in st.session_state:
         em = st.session_state["emergency"]
         st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
+
+    # ——— Export All Data as JSON ———
+    st.markdown("---")
+    st.subheader("Export All Data as JSON")
+    data_export = {
+        "discharge_text": discharge_text,
+        "concise_summary": st.session_state["cached_concise"],
+        "detailed_summary": st.session_state["cached_summary"],
+        "sections": st.session_state["cached_sections"],
+        "symptoms": st.session_state["symptoms"],
+        "feedback_messages": st.session_state["faq_log"],
+        "emergency_contact": st.session_state.get("emergency", {}),
+        "caregiver_email": st.session_state.get("caregiver_email", ""),
+        "sms_phone": st.session_state.get("sms_phone", ""),
+        "mood": st.session_state.get("mood", ""),
+    }
+    st.download_button(
+        label="Download All Data (JSON)",
+        data=json.dumps(data_export, indent=2),
+        file_name="app_data.json",
+        mime="application/json",
+    )
 
     # Privacy Dashboard
     st.markdown("---")
