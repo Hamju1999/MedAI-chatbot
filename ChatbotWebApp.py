@@ -92,59 +92,77 @@ else:
         st.info("Please provide your OpenRouter API key.")
         st.stop()
 
-# --- File uploader ---
-current = st.session_state.get("discharge_text", "")
+# --- Input mode selector (replaces your previous text_area + file_uploader + audio_file) ---
+mode = st.radio(
+    "How would you like to provide the discharge text?",
+    ("Enter text", "Upload file", "Voice note"),
+    horizontal=True
+)
 
-# Count lines and compute pixel height (e.g. ~25px per line)
-line_count = current.count("\n") + 1
-min_h, max_h = 200, 800    # clamp between 200px and 800px
-height_px = min(max(line_count * 25, min_h), max_h)
-discharge_text = st.text_area(
-    "Discharge Instructions Text:",
-    height=200,
-    help="Or just paste your instructions instead of uploading a file",
-    key="discharge_text"        
-)
-# 2) …or uploading
-uploaded_file = st.file_uploader(
-    "Upload Discharge Summary (TXT or PDF)",
-    type=["txt", "pdf"],
-    help="Accepted formats: .txt or .pdf"
-)
-if uploaded_file:
-    extracted = extract_text_from_file(uploaded_file).strip()
-    if not extracted:
-        st.error("Could not extract any text. Please upload a valid file.")
-    else:
-        st.session_state.discharge_text = extracted
+# initialize discharge_text if not already in session
+if "discharge_text" not in st.session_state:
+    st.session_state["discharge_text"] = ""
+
+# 1) Manual entry
+if mode == "Enter text":
+    # dynamic height based on existing text
+    current = st.session_state.get("discharge_text", "")
+    line_count = current.count("\n") + 1
+    min_h, max_h = 200, 800
+    height_px = min(max(line_count * 25, min_h), max_h)
+
+    discharge_text = st.text_area(
+        "Discharge Instructions Text:",
+        height=height_px,
+        help="Paste or type your instructions here; updates immediately",
+        key="discharge_text"
+    )
+# 2) File upload
+elif mode == "Upload file":
+    uploaded_file = st.file_uploader(
+        "Upload Discharge Summary (TXT or PDF)",
+        type=["txt", "pdf"],
+        help="Accepted formats: .txt or .pdf"
+    )
+    if uploaded_file:
+        extracted = extract_text_from_file(uploaded_file).strip()
+        if not extracted:
+            st.error("Could not extract any text. Please upload a valid file.")
+        else:
+            st.session_state["discharge_text"] = extracted
+    discharge_text = st.session_state.get("discharge_text", "")
         
 if st.session_state.discharge_text:
     st.markdown("Original Text")
     st.write(st.session_state.discharge_text)  
 else:
-    st.info("Paste or upload your discharge summary above, then click ‘Simplify Discharge Instructions’") 
+    st.info("Provide discharge instructions above using the selected mode, then click ‘Simplify Discharge Instructions’")
+    st.stop()
 
 # --- Patient Context & Voice Input ---
 #if "patient_context" not in st.session_state:
     #st.session_state["patient_context"] = ""
 #patient_context_input = st.text_input("Enter patient context (optional):")
-audio_file = st.file_uploader(
-    "Or upload voice note for context (mp3/wav)",
-    type=["mp3","wav"],
-    help="Optional: record additional context"
-)
-if audio_file and sr:
-    r = sr.Recognizer()
-    with sr.AudioFile(audio_file) as source:
-        audio = r.record(source)
-    try:
-        transcribed = r.recognize_google(audio)
-        st.write(f"Transcribed voice note: {transcribed}")
-        #patient_context_input = transcribed
-    except Exception:
-        st.warning("Could not transcribe audio.")
-elif audio_file:
-    st.info("`speech_recognition` not installed for transcription.")
+# 3) Voice note
+else:  # mode == "Voice note"
+    audio_file = st.file_uploader(
+        "Or upload voice note for context (mp3/wav)",
+        type=["mp3","wav"],
+        help="Optional: record additional context"
+    )
+    if audio_file and sr:
+        r = sr.Recognizer()
+        with sr.AudioFile(audio_file) as source:
+            audio = r.record(source)
+        try:
+            transcribed = r.recognize_google(audio)
+            st.write(f"Transcribed voice note: {transcribed}")
+            st.session_state["discharge_text"] = transcribed
+        except Exception:
+            st.warning("Could not transcribe audio.")
+    elif audio_file:
+        st.info("`speech_recognition` not installed for transcription.")
+    discharge_text = st.session_state.get("discharge_text", "")
 #if st.button("Apply Context", key="apply_context_btn"):
     #st.session_state["patient_context"] = patient_context_input
     #st.success("Patient context applied successfully.")
