@@ -82,7 +82,8 @@ uploaded_file = st.file_uploader(
 if not pasted_text and not uploaded_file:
     st.info("Please paste text above or upload a file below.")
     st.stop()
-
+    
+discharge_text = extract_text_from_file(uploaded_file).strip()
 st.markdown("Original Text")
 st.write(discharge_text)  
 
