@@ -71,11 +71,15 @@ st.title("Discharge Summary Simplifier")
 st.subheader("Transforming Patient Understanding with AI")
 st.write("Upload a hospital discharge summary and let the AI simplify it into clear instructions.")
 
-# --- Offline caching ---
+# --- Offline caching & run flag ---
 if "cached_summary" not in st.session_state:
     st.session_state["cached_summary"] = None
 if "cached_sections" not in st.session_state:
     st.session_state["cached_sections"] = {}
+if "cached_concise" not in st.session_state:
+    st.session_state["cached_concise"] = None
+if "run_summary" not in st.session_state:
+    st.session_state["run_summary"] = False   # ← new flag
 if "symptoms" not in st.session_state:
     st.session_state["symptoms"] = []
 if "faq_log" not in st.session_state:
@@ -317,158 +321,160 @@ if st.button("Simplify Discharge Instructions"):
                     sections[current].append(clean_text)
         st.session_state["cached_sections"] = sections
 
-    # Display summary and parsed sections
-    st.markdown("---")
-    st.subheader("Simplified Summary")
-    for line in concise_text.splitlines():
-        st.markdown(apply_tooltips(line), unsafe_allow_html=True)
-
-    # Parsed Sections & Actions
-    st.markdown("---")
-    st.subheader("Categorization & Actions")
-    for sec, items in sections.items():
-        sections[sec] = [
-            re.sub(r'\}+$', '', itm).strip()
-            for itm in items
-        ]
-    sections = {
-        re.sub(r'\*+', '', sec).strip(): [
-            re.sub(r'\*+', '', itm).strip()
-            for itm in items
-        ]
-        for sec, items in sections.items()
-    }
-    icons = {
-        "Simplified Instructions": "",
-        "Importance": "",
-        "Follow-Up Appointments or Tasks": "",
-        "Medications": "",
-        "Precautions": "",
-        "References": ""
-    }
-    if not sections or all(len(v)==0 for v in sections.values()):
-        st.info("No structured sections found. Please ensure your summary uses the expected headings.")
-    else:
+    st.session_state["run_summary"] = True  
+    if st.session_state["run_summary"]:
+        # Display summary and parsed sections
+        st.markdown("---")
+        st.subheader("Simplified Summary")
+        for line in concise_text.splitlines():
+            st.markdown(apply_tooltips(line), unsafe_allow_html=True)
+    
+        # Parsed Sections & Actions
+        st.markdown("---")
+        st.subheader("Categorization & Actions")
         for sec, items in sections.items():
-            if not items:
-                continue
-            st.markdown(f"{icons.get(sec,'')} {sec}")
-            for itm in items:
-                st.markdown(f"- {apply_tooltips(itm)}", unsafe_allow_html=True)
-            if sec == "Follow-Up Appointments or Tasks":
-                for fu in items:
-                    ics = generate_ics(fu)
-                    st.download_button(
-                        f"Add '{fu}' to Calendar",
-                        data=ics,
-                        file_name="event.ics",
-                        mime="text/calendar"
-                    )
-            if sec == "Medications":
-                st.subheader("Medication Checklist & Reminders")
-                for med in items:
-                    st.checkbox(med, key=med)
-                if st.button("Schedule Med Reminders", key="med_reminders_btn"):
-                    st.success("Medication reminders scheduled!")
-
-        if textstat:
-            combined = " ".join(
-                itm for items in sections.values() for itm in items
-            )
-            overall_grade = textstat.flesch_kincaid_grade(combined)
-            st.markdown(f"*Overall reading level: {overall_grade:.1f}th grade*", unsafe_allow_html=True)
+            sections[sec] = [
+                re.sub(r'\}+$', '', itm).strip()
+                for itm in items
+            ]
+        sections = {
+            re.sub(r'\*+', '', sec).strip(): [
+                re.sub(r'\*+', '', itm).strip()
+                for itm in items
+            ]
+            for sec, items in sections.items()
+        }
+        icons = {
+            "Simplified Instructions": "",
+            "Importance": "",
+            "Follow-Up Appointments or Tasks": "",
+            "Medications": "",
+            "Precautions": "",
+            "References": ""
+        }
+        if not sections or all(len(v)==0 for v in sections.values()):
+            st.info("No structured sections found. Please ensure your summary uses the expected headings.")
+        else:
+            for sec, items in sections.items():
+                if not items:
+                    continue
+                st.markdown(f"{icons.get(sec,'')} {sec}")
+                for itm in items:
+                    st.markdown(f"- {apply_tooltips(itm)}", unsafe_allow_html=True)
+                if sec == "Follow-Up Appointments or Tasks":
+                    for fu in items:
+                        ics = generate_ics(fu)
+                        st.download_button(
+                            f"Add '{fu}' to Calendar",
+                            data=ics,
+                            file_name="event.ics",
+                            mime="text/calendar"
+                        )
+                if sec == "Medications":
+                    st.subheader("Medication Checklist & Reminders")
+                    for med in items:
+                        st.checkbox(med, key=med)
+                    if st.button("Schedule Med Reminders", key="med_reminders_btn"):
+                        st.success("Medication reminders scheduled!")
+    
+            if textstat:
+                combined = " ".join(
+                    itm for items in sections.values() for itm in items
+                )
+                overall_grade = textstat.flesch_kincaid_grade(combined)
+                st.markdown(f"*Overall reading level: {overall_grade:.1f}th grade*", unsafe_allow_html=True)
+                
+                categorization_dict = sections 
+                st.markdown("#### Categorization as JSON")
+                st.json(categorization_dict)
             
-            categorization_dict = sections 
-            st.markdown("#### Categorization as JSON")
-            st.json(categorization_dict)
+                json_payload = json.dumps(categorization_dict, indent=2)
+                st.download_button(
+                    label="Download Categorization JSON",
+                    data=json_payload,
+                    file_name="categorization.json",
+                    mime="application/json"
+                )
         
-            json_payload = json.dumps(categorization_dict, indent=2)
-            st.download_button(
-                label="Download Categorization JSON",
-                data=json_payload,
-                file_name="categorization.json",
-                mime="application/json"
-            )
+        # 3) Parsed Sections & Actions
+        st.markdown("---")
+        st.subheader("Actions & Trackers")
+        last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
+        if last and last.get("pain",0) > 8:
+            st.warning("High pain detected – consider contacting your provider.")
     
-    # 3) Parsed Sections & Actions
-    st.markdown("---")
-    st.subheader("Actions & Trackers")
-    last = st.session_state["symptoms"][-1] if st.session_state["symptoms"] else None
-    if last and last.get("pain",0) > 8:
-        st.warning("High pain detected – consider contacting your provider.")
-
-    # 4) Symptom Recovery Timeline
-    if st.checkbox("Show Recovery Timeline") and st.session_state["symptoms"]:
-        df = pd.DataFrame(st.session_state["symptoms"])  # date,pain,swelling
-        df["date"] = pd.to_datetime(df["date"])
-        chart = df.set_index("date")["pain"]
-        st.line_chart(chart)
-
-    # 5) Export Data for Clinicians
-    if st.button("Download Symptom Log for Clinician"):
-        df = pd.DataFrame(st.session_state["symptoms"])
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", data=csv, file_name="symptoms.csv")
-
-    # 6) EHR Sync (stub)
-    if st.button("Sync with EHR"):
-        st.info("EHR integration not configured.")
-
-    # 7) Caregiver / Proxy Sharing
-    if st.checkbox("Enable caregiver access"):
-        email = st.text_input("Caregiver email:")
-        if st.button("Generate share link"):
-            st.write(f"Shareable link sent to {email}.")
-
-    # 8) SMS & Push Reminders
-    phone = st.text_input("Phone number for SMS reminders:")
-    if st.button("Enable SMS Reminders") and phone:
-        st.success(f"SMS reminders will be sent to {phone}.")
-
-    # 9) Privacy & Data Control
-    st.markdown("---")
-    st.subheader("Privacy Dashboard")
-    if st.button("View Stored Data"):
-        st.write(st.session_state)
-    if st.button("Clear All Data"):
-        for k in ["cached_summary","cached_sections","symptoms","faq_log"]:
-            st.session_state[k] = [] if isinstance(st.session_state[k], list) else None
-        st.success("Data cleared.")
-
-    # 12) Mood & Interaction Alerts
-    mood = st.select_slider("How are you feeling today?", options=["Good","Okay","Poor"])
-    if mood == "Poor":
-        st.warning("We noticed you feel poor—review precautions or contact your provider.")
+        # 4) Symptom Recovery Timeline
+        if st.checkbox("Show Recovery Timeline") and st.session_state["symptoms"]:
+            df = pd.DataFrame(st.session_state["symptoms"])  # date,pain,swelling
+            df["date"] = pd.to_datetime(df["date"])
+            chart = df.set_index("date")["pain"]
+            st.line_chart(chart)
     
-    # Symptom Tracker
-    st.markdown("---")
-    if st.checkbox("Enable Symptom Tracker"):
-        st.subheader("Symptom Tracker")
-        d = st.date_input("Date", datetime.date.today())
-        pain = st.slider("Pain level", 0, 10, 0)
-        swelling = st.slider("Swelling level", 0, 10, 0)
-        if st.button("Log Symptom"):
-            if "symptoms" not in st.session_state: st.session_state["symptoms"]=[]
-            st.session_state["symptoms"].append({"date":str(d),"pain":pain,"swelling":swelling})
-            st.success("Symptom logged")
-        if st.session_state.get("symptoms"):
-            st.write(st.session_state["symptoms"]) 
-
-    # Feedback to provider
-    st.markdown("---")
-    st.subheader("Send Feedback to Provider")
-    msg = st.text_area("Your message to your care team")
-    if st.button("Send Message"):
-        st.success("Your message has been sent to your provider.")
-
-    # Emergency contacts
-    st.markdown("---")
-    st.subheader("🚨 Emergency Contacts")
-    ec_name = st.text_input("Contact Name")
-    ec_num = st.text_input("Contact Number")
-    if st.button("Save Contact"):
-        st.session_state["emergency"]={"name":ec_name,"number":ec_num}
-        st.success("Emergency contact saved")
-    if st.session_state.get("emergency"):
-        em = st.session_state["emergency"]
-        st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
+        # 5) Export Data for Clinicians
+        if st.button("Download Symptom Log for Clinician"):
+            df = pd.DataFrame(st.session_state["symptoms"])
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button("Download CSV", data=csv, file_name="symptoms.csv")
+    
+        # 6) EHR Sync (stub)
+        if st.button("Sync with EHR"):
+            st.info("EHR integration not configured.")
+    
+        # 7) Caregiver / Proxy Sharing
+        if st.checkbox("Enable caregiver access"):
+            email = st.text_input("Caregiver email:")
+            if st.button("Generate share link"):
+                st.write(f"Shareable link sent to {email}.")
+    
+        # 8) SMS & Push Reminders
+        phone = st.text_input("Phone number for SMS reminders:")
+        if st.button("Enable SMS Reminders") and phone:
+            st.success(f"SMS reminders will be sent to {phone}.")
+    
+        # 9) Privacy & Data Control
+        st.markdown("---")
+        st.subheader("Privacy Dashboard")
+        if st.button("View Stored Data"):
+            st.write(st.session_state)
+        if st.button("Clear All Data"):
+            for k in ["cached_summary","cached_sections","symptoms","faq_log"]:
+                st.session_state[k] = [] if isinstance(st.session_state[k], list) else None
+            st.success("Data cleared.")
+    
+        # 12) Mood & Interaction Alerts
+        mood = st.select_slider("How are you feeling today?", options=["Good","Okay","Poor"])
+        if mood == "Poor":
+            st.warning("We noticed you feel poor—review precautions or contact your provider.")
+        
+        # Symptom Tracker
+        st.markdown("---")
+        if st.checkbox("Enable Symptom Tracker"):
+            st.subheader("Symptom Tracker")
+            d = st.date_input("Date", datetime.date.today())
+            pain = st.slider("Pain level", 0, 10, 0)
+            swelling = st.slider("Swelling level", 0, 10, 0)
+            if st.button("Log Symptom"):
+                if "symptoms" not in st.session_state: st.session_state["symptoms"]=[]
+                st.session_state["symptoms"].append({"date":str(d),"pain":pain,"swelling":swelling})
+                st.success("Symptom logged")
+            if st.session_state.get("symptoms"):
+                st.write(st.session_state["symptoms"]) 
+    
+        # Feedback to provider
+        st.markdown("---")
+        st.subheader("Send Feedback to Provider")
+        msg = st.text_area("Your message to your care team")
+        if st.button("Send Message"):
+            st.success("Your message has been sent to your provider.")
+    
+        # Emergency contacts
+        st.markdown("---")
+        st.subheader("🚨 Emergency Contacts")
+        ec_name = st.text_input("Contact Name")
+        ec_num = st.text_input("Contact Number")
+        if st.button("Save Contact"):
+            st.session_state["emergency"]={"name":ec_name,"number":ec_num}
+            st.success("Emergency contact saved")
+        if st.session_state.get("emergency"):
+            em = st.session_state["emergency"]
+            st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
