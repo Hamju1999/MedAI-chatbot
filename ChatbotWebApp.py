@@ -198,12 +198,12 @@ def summarize_discharge(text: str, reading_lvl: int, lang: str) -> dict:
         #f"Patient Context (if any): {patient_context}\n"
         f"The following is a hospital discharge summary. Simplify it to a {reading_lvl}th-grade reading level in {lang}.\n"
         "Break into sections with these headings:\n"
-        "- Simplified Instructions: bullet-points\n"
-        "- Importance: why each instruction matters\n"
-        "- Follow-Up Appointments or Tasks: tasks/visits\n"
-        "- Medications: with simple dosing notes\n"
-        "- Precautions: warning signs, activities to avoid\n"
-        "- References: brief reasons/explanations\n\n"
+        "- **Simplified Instructions:** bullet-points\n"
+        "- **Importance:** why each instruction matters\n"
+        "- **Follow-Up Appointments or Tasks:** tasks/visits\n"
+        "- **Medications:** with simple dosing notes\n"
+        "- **Precautions:** warning signs, activities to avoid\n"
+        "- **References:** brief reasons/explanations\n\n"
         f"Now simplify:\n\"\"\"{text}\"\"\""
     )
     url = "https://openrouter.ai/api/v1/chat/completions"
@@ -302,14 +302,20 @@ if st.button("Simplify Discharge Instructions"):
         for sec, items in sections.items():
             if not items:
                 continue
-            st.markdown(f"**{icons.get(sec,'')} {sec}**")
+            # clean both icon and section name
+            clean_text = re.sub(r"[:\*]+$", "", text).strip()
+            icon = clean_text(icons.get(sec, ""))
+            header = clean_text(sec)
+            st.markdown(f"**{icon} {header}**")
             for itm in items:
-                st.markdown(f"- {apply_tooltips(itm)}", unsafe_allow_html=True)
+                cleaned_item = clean_text(itm)
+                st.markdown(f"- {apply_tooltips(cleaned_item)}", unsafe_allow_html=True)
             if sec == "Follow-Up Appointments or Tasks":
                 for fu in items:
-                    ics = generate_ics(fu)
+                    cleaned_fu = clean_text(fu)
+                    ics = generate_ics(cleaned_fu)
                     st.download_button(
-                        f"Add '{fu}' to Calendar",
+                        f"Add '{cleaned_fu}' to Calendar",
                         data=ics,
                         file_name="event.ics",
                         mime="text/calendar"
@@ -317,7 +323,8 @@ if st.button("Simplify Discharge Instructions"):
             if sec == "Medications":
                 st.subheader("Medication Checklist & Reminders")
                 for med in items:
-                    st.checkbox(med, key=med)
+                    cleaned_med = clean_text(med)
+                    st.checkbox(cleaned_med, key=cleaned_med)
                 if st.button("Schedule Med Reminders", key="med_reminders_btn"):
                     st.success("Medication reminders scheduled!")
 
