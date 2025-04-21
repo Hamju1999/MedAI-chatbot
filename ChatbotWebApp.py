@@ -331,7 +331,8 @@ if st.session_state["run_summary"]:
             text = text.replace("*", "")
             # 3) strip leading/trailing colons and whitespace
             text = text.strip().strip(":")
-    
+            # 4) remove any leading "Task:" prefix
+            text = re.sub(r'^(Task:)\s*', '', text, flags=re.IGNORECASE)
             st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
     
             # Calendar button only for Follow‑Up items mentioning "visit"
