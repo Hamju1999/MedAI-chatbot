@@ -304,17 +304,11 @@ if st.session_state["run_summary"]:
         st.success("Logged")
     if st.session_state["symptoms"]:
         st.dataframe(pd.DataFrame(st.session_state["symptoms"]))
-    
-    # Actions & Trackers
-    st.markdown("---")
-    st.subheader("Actions & Trackers")
-
     # high‑pain
     if st.session_state["symptoms"]:
         last = st.session_state["symptoms"][-1]
         if last.get("pain",0)>8:
             st.warning("High pain detected.")
-
     # timeline
     if st.checkbox("Show Recovery Timeline", key="show_timeline"):
         if st.session_state["symptoms"]:
@@ -323,15 +317,10 @@ if st.session_state["run_summary"]:
             st.line_chart(df.set_index("date")[["pain","swelling"]])
         else:
             st.info("No symptom data.")
-
     # download log
     if st.session_state["symptoms"]:
         csv = pd.DataFrame(st.session_state["symptoms"]).to_csv(index=False)
         st.download_button("Download Symptom Log", csv, "symptoms.csv","text/csv", key="dl_symptoms")
-
-    # EHR stub
-    if st.button("Sync with EHR", key="sync_ehr"):
-        st.info("EHR integration not configured.")
 
     # Send Feedback
     st.markdown("---")
@@ -345,16 +334,6 @@ if st.session_state["run_summary"]:
             f"&body={requests.utils.quote(fb)}"
         )
         st.markdown(f"[Click here to send feedback]({mailto_fb})")
-
-    # Privacy Dashboard
-    st.markdown("---")
-    st.subheader("Privacy Dashboard")
-    if st.button("View Stored Data", key="view_data"):
-        st.json({k: st.session_state[k] for k in st.session_state})
-    if st.button("Clear All Data", key="clear_data"):
-        for k in list(st.session_state.keys()):
-            st.session_state.pop(k,None)
-        st.success("Cleared")
 
 # --- Emergency Contacts ---
 st.markdown("---")
@@ -372,3 +351,13 @@ with st.form("emergency_form"):
 if "emergency" in st.session_state:
     em = st.session_state["emergency"]
     st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
+
+    # Privacy Dashboard
+    st.markdown("---")
+    st.subheader("Privacy Dashboard")
+    if st.button("View Stored Data", key="view_data"):
+        st.json({k: st.session_state[k] for k in st.session_state})
+    if st.button("Clear All Data", key="clear_data"):
+        for k in list(st.session_state.keys()):
+            st.session_state.pop(k,None)
+        st.success("Cleared")
