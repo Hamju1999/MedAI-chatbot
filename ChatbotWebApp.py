@@ -335,22 +335,22 @@ if st.session_state["run_summary"]:
         )
         st.markdown(f"[Click here to send feedback]({mailto_fb})")
 
-# --- Emergency Contacts ---
-st.markdown("---")
-st.subheader("🚨 Emergency Contacts")
-
-with st.form("emergency_form"):
-    ec_name = st.text_input("Contact Name", key="ec_name_input")
-    ec_num  = st.text_input("Contact Number", key="ec_num_input")
-    save_ec = st.form_submit_button("Save Contact")
-    if save_ec:
-        st.session_state["emergency"] = {"name": ec_name, "number": ec_num}
-        st.success("Emergency contact saved")
-
-# Always show the saved contact below
-if "emergency" in st.session_state:
-    em = st.session_state["emergency"]
-    st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
+    # --- Emergency Contacts ---
+    st.markdown("---")
+    st.subheader("🚨 Emergency Contacts")
+    
+    with st.form("emergency_form"):
+        ec_name = st.text_input("Contact Name", key="ec_name_input")
+        ec_num  = st.text_input("Contact Number", key="ec_num_input")
+        save_ec = st.form_submit_button("Save Contact")
+        if save_ec:
+            st.session_state["emergency"] = {"name": ec_name, "number": ec_num}
+            st.success("Emergency contact saved")
+    
+    # Always show the saved contact below
+    if "emergency" in st.session_state:
+        em = st.session_state["emergency"]
+        st.markdown(f"[Call {em['name']}]({{'tel:' + em['number']}})")
 
     # Privacy Dashboard
     st.markdown("---")
