@@ -287,17 +287,11 @@ if st.button("Simplify Discharge Instructions"):
     # Parsed Sections & Actions
     st.markdown("---")
     st.subheader("Categorization & Actions")
-    sections = {
-        re.sub(r'\*+', '', sec).strip(): [
-            re.sub(r'\*+', '', itm).strip()
+    for sec, items in sections.items():
+        sections[sec] = [
+            re.sub(r'\}+$', '', itm).strip()
             for itm in items
         ]
-        for sec, items in sections.items():
-            sections[sec] = [
-                re.sub(r'\}+$', '', itm).strip()
-                for itm in items
-            ]
-    }
     icons = {
         "Simplified Instructions": "",
         "Importance": "",
