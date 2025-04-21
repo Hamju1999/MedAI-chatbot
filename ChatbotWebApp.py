@@ -302,7 +302,7 @@ if st.button("Simplify Discharge Instructions"):
         "References": ""
     }
     if not sections or all(len(v) == 0 for v in sections.values()):
-        st.info("No structured sections found. Please ensure your summary uses the expected headings.")
+        streamlit.info("No structured sections found. Please ensure your summary uses the expected headings.")
     else:
         for sec, items in sections.items():
             if not items:
@@ -310,17 +310,18 @@ if st.button("Simplify Discharge Instructions"):
     
             icon = clean_text(icons.get(sec, ""))
             header = clean_text(sec)
-            st.markdown(f"**{icon} {header}**", unsafe_allow_html=True)
+            # call the module function directly to avoid shadowing
+            streamlit.markdown(f"**{icon} {header}**", unsafe_allow_html=True)
     
             for itm in items:
                 cleaned_item = clean_text(itm)
-                st.markdown(f"- {apply_tooltips(cleaned_item)}", unsafe_allow_html=True)
+                streamlit.markdown(f"- {apply_tooltips(cleaned_item)}", unsafe_allow_html=True)
     
             if sec == "Follow-Up Appointments or Tasks":
                 for fu in items:
                     cleaned_fu = clean_text(fu)
                     ics = generate_ics(cleaned_fu)
-                    st.download_button(
+                    streamlit.download_button(
                         f"Add '{cleaned_fu}' to Calendar",
                         data=ics,
                         file_name="event.ics",
@@ -328,12 +329,12 @@ if st.button("Simplify Discharge Instructions"):
                     )
     
             if sec == "Medications":
-                st.subheader("Medication Checklist & Reminders")
+                streamlit.subheader("Medication Checklist & Reminders")
                 for med in items:
                     cleaned_med = clean_text(med)
-                    st.checkbox(cleaned_med, key=cleaned_med)
-                if st.button("Schedule Med Reminders", key="med_reminders_btn"):
-                    st.success("Medication reminders scheduled!")
+                    streamlit.checkbox(cleaned_med, key=cleaned_med)
+                if streamlit.button("Schedule Med Reminders", key="med_reminders_btn"):
+                    streamlit.success("Medication reminders scheduled!")
 
     # 3) Parsed Sections & Actions
     st.markdown("---")
