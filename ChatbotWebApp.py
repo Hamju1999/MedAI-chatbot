@@ -6,6 +6,7 @@ import datetime
 import locale
 import base64
 import requests
+import json
 import streamlit as st
 import pandas as pd
 
@@ -362,6 +363,18 @@ if st.button("Simplify Discharge Instructions"):
             )
             overall_grade = textstat.flesch_kincaid_grade(combined)
             st.markdown(f"*Overall reading level: {overall_grade:.1f}th grade*", unsafe_allow_html=True)
+            
+            categorization_dict = sections 
+            st.markdown("#### Categorization as JSON")
+            st.json(categorization_dict)
+        
+            json_payload = json.dumps(categorization_dict, indent=2)
+            st.download_button(
+                label="Download Categorization JSON",
+                data=json_payload,
+                file_name="categorization.json",
+                mime="application/json"
+            )
     
     # 3) Parsed Sections & Actions
     st.markdown("---")
