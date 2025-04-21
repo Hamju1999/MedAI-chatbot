@@ -308,10 +308,9 @@ if st.button("Simplify Discharge Instructions"):
             if not items:
                 continue
     
-            # clean both icon and section name
             icon = clean_text(icons.get(sec, ""))
             header = clean_text(sec)
-            st.markdown(f"**{icon} {header}**")
+            st.markdown(f"**{icon} {header}**", unsafe_allow_html=True)
     
             for itm in items:
                 cleaned_item = clean_text(itm)
