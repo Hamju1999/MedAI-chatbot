@@ -38,6 +38,32 @@ try:
 except ImportError:
     sr = None
 
+# --- Text extraction ---
+def extract_text_from_file(file) -> str:
+    if file.type == "application/pdf":
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            st.error("PDF support requires PyPDF2. Please `pip install PyPDF2`.")
+            return ""
+        try:
+            reader = PdfReader(file)
+        except Exception:
+            import io as _io
+            reader = PdfReader(_io.BytesIO(file.read()))
+        text = ""
+        for page in reader.pages:
+            text += (page.extract_text() or "") + "\n"
+        return text
+    else:
+        data = file.read()
+        for enc in ("utf-8","latin-1"): 
+            try:
+                return data.decode(enc)
+            except:
+                pass
+        return ""
+
 # --- UI setup ---
 st.set_page_config(page_title="Discharge Summary Simplifier")
 st.title("Discharge Summary Simplifier")
@@ -145,32 +171,6 @@ with col2:
     language = st.selectbox(
         "Output Language", ["English","Spanish","Chinese","French","German"], index=0
     )
-
-# --- Text extraction ---
-def extract_text_from_file(file) -> str:
-    if file.type == "application/pdf":
-        try:
-            from PyPDF2 import PdfReader
-        except ImportError:
-            st.error("PDF support requires PyPDF2. Please `pip install PyPDF2`.")
-            return ""
-        try:
-            reader = PdfReader(file)
-        except Exception:
-            import io as _io
-            reader = PdfReader(_io.BytesIO(file.read()))
-        text = ""
-        for page in reader.pages:
-            text += (page.extract_text() or "") + "\n"
-        return text
-    else:
-        data = file.read()
-        for enc in ("utf-8","latin-1"): 
-            try:
-                return data.decode(enc)
-            except:
-                pass
-        return ""
 
 # Determine discharge_text from whichever source was given
 if uploaded_file:
