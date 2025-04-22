@@ -239,15 +239,19 @@ def generate_concise_summary(text:str, lang:str)->dict:
 
 def summarize_discharge(text:str, lvl:int, lang:str)->dict:
     prompt = (
-        f"The following is a hospital discharge summary. Simplify it to a {lvl}th-grade reading level in {lang}.\n"
-        "Break into sections with these headings:\n"
-        "- **Simplified Instructions:** bullet-points\n"
-        "- **Importance:** why each instruction matters\n"
-        "- **Follow-Up Appointments or Tasks:** tasks/visits\n"
-        "- **Medications:** with simple dosing notes\n"
-        "- **Precautions:** warning signs, activities to avoid\n"
-        "- **References:** brief reasons/explanations\n\n"
-        f"Now simplify:\n\"\"\"{text}\"\"\""
+        f"The following is a hospital discharge summary.  Simplify it to a {lvl}th‑grade reading level in {lang}.\n"
+        "Break your output into these six JSON fields (each an array of strings):\n"
+        "  1. \"Simplified Instructions\"\n"
+        "  2. \"Importance\"\n"
+        "  3. \"Follow‑Up Appointments or Tasks\"\n"
+        "  4. \"Medications\"\n"
+        "  5. \"Precautions\"\n"
+        "  6. \"References\"\n\n"
+        "For each array, produce only complete bullet‑point sentences.  "
+        "Each sentence must be self‑contained, end with a period, and never wrap mid‑idea onto the next line.  "
+        "Do not include any extra fields or commentary—only valid JSON.\n\n"
+        f"Here is the original text:\n\"\"\"{text}\"\"\"\n"
+        "Now generate the JSON as described."
     )
     payload = {"model":"deepseek/deepseek-r1",
                "messages":[{"role":"user","content":prompt}],
