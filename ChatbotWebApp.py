@@ -557,7 +557,7 @@ if st.session_state["run_summary"]:
     if "verification" in st.session_state:
         st.markdown("---")
         st.subheader("Categorization Verification")
-        st.write(st.session_state["verification"]["raw"])
+        st.markdown(st.session_state["verification"]["raw"])
         
     # --- Symptom Tracker with auto‑extracted symptoms ---
     st.markdown("---")
