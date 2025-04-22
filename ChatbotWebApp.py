@@ -157,6 +157,7 @@ else:
                 transcript = punctuate_text(transcript, api_key)
                 st.success("Transcription:")
                 st.write(transcript)
+                st.session_state["discharge_text"] = transcript
             os.remove(tmp_wav.name)
         except Exception as e:
             st.error("Transcription failed.")
