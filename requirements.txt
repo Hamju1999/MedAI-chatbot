@@ -10,4 +10,4 @@ sentence-transformers>=2.2.2
 torch>=2.0.0
 textstat
 qrcode
-speech_recognition 
+SpeechRecognition>=3.8.1
