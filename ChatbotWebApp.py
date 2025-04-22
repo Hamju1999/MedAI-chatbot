@@ -113,18 +113,28 @@ elif mode == "Upload file":
 else:
     audio = st.file_uploader("Upload voice note (mp3/wav)", type=["mp3","wav"])
     if audio and sr:
-        r = sr.Recognizer()
-        # Convert MP3 to WAV
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
-            sound = AudioSegment.from_file(audio, format="mp3")
-            sound.export(tmp_wav.name, format="wav")
-        with sr.AudioFile(audio) as src:
-            aud = r.record(src)
         try:
-            txt = r.recognize_google(aud)
-            st.session_state["discharge_text"] = txt
-        except:
-            st.warning("Transcription failed.")
+            recognizer = sr.Recognizer()
+            # Convert MP3 to WAV if needed
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
+                if audio.type == "audio/mp3":
+                    sound = AudioSegment.from_file(audio, format="mp3")
+                    sound.export(tmp_wav.name, format="wav")
+                elif audio.type == "audio/wav":
+                    tmp_wav.write(audio.read())
+                else:
+                    st.error("Unsupported audio format")
+                    st.stop()
+                # Use speech recognition
+                with sr.AudioFile(tmp_wav.name) as source:
+                    audio_data = recognizer.record(source)
+                transcript = recognizer.recognize_google(audio_data)
+                st.success("Transcription:")
+                st.write(transcript)
+            # Clean up
+            os.remove(tmp_wav.name)
+        except Exception as e:
+            st.error(f"Transcription failed: {e}")
     elif audio:
         st.info("Install speech_recognition for transcription.")
 
