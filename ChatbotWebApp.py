@@ -327,7 +327,28 @@ if st.button("Simplify Discharge Instructions"):
                 "Precautions": [],
                 "References": []
             }
-            
+            CATEGORY_MAP = {
+                "Simplified Instructions": [
+                    r"post[-\s]?op(erative)? care", r"instructions?", r"care at home",
+                    r"discharge (plan|instructions)", r"your (next )?steps"
+                ],
+                "Importance": [
+                    r"why (it )?matters", r"education", r"why you should", r"why this is important"
+                ],
+                "Follow‑Up Appointments or Tasks": [
+                    r"(next|follow[-\s]?up) (visit|appointment)", r"when to (come back|return|see)",
+                    r"after (your )?(visit|surgery)"
+                ],
+                "Medications": [
+                    r"medications?", r"drugs?", r"pills?", r"what to take"
+                ],
+                "Precautions": [
+                    r"precautions?", r"warning", r"avoid", r"when to call", r"if you have"
+                ],
+                "References": [
+                    r"references?", r"explanations?", r"notes?", r"sources?"
+                ],
+            }
             # compile flexible header patterns (now stripping trailing ** too)
             header_patterns = {
                 name: re.compile(
