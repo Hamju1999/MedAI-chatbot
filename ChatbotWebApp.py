@@ -11,6 +11,7 @@ import tempfile
 import streamlit as st
 import pandas as pd
 from pydub import AudioSegment
+from pydub.utils import which
 
 # optional readability scoring
 try:
@@ -35,7 +36,7 @@ try:
 except ImportError:
     sr = None
 
-AudioSegment.converter = "ffmpeg"  # ensure ffmpeg is used
+AudioSegment.converter = which("ffmpeg") or "/usr/bin/ffmpeg"
 
 # --- Text extraction ---
 def extract_text_from_file(file) -> str:
@@ -48,8 +49,7 @@ def extract_text_from_file(file) -> str:
         try:
             reader = PdfReader(file)
         except Exception:
-            import io as _io
-            reader = PdfReader(_io.BytesIO(file.read()))
+            reader = PdfReader(io.BytesIO(file.read()))
         text = ""
         for page in reader.pages:
             text += (page.extract_text() or "") + "\n"
@@ -116,8 +116,7 @@ else:
     audio = st.file_uploader("Upload voice note (mp3/wav)", type=["mp3","wav"])
     if audio and sr:
         try:
-            recognizer = sr.Recognizer()
-            
+            recognizer = sr.Recognizer()  
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
                 if audio.type in ["audio/mp3", "audio/mpeg"]:
                     sound = AudioSegment.from_file(audio, format="mp3")
@@ -131,21 +130,17 @@ else:
                 else:
                     st.error("Unsupported audio format")
                     st.stop()
-    
                 # Use speech recognition
                 with sr.AudioFile(tmp_wav.name) as source:
                     audio_data = recognizer.record(source)
-    
                 transcript = recognizer.recognize_google(audio_data)
                 st.success("Transcription:")
                 st.write(transcript)
-    
             os.remove(tmp_wav.name)
-    
         except Exception as e:
-            st.error(f"Transcription failed: {e}")
-    
-    elif audio:
+            st.error("Transcription failed.")
+            st.exception(e)
+    elif audio and not sr:
         st.info("Install `speech_recognition` for transcription.")
 
 discharge_text = st.session_state["discharge_text"]
@@ -243,7 +238,7 @@ glossary = {
 def apply_tooltips(line:str)->str:
     for term,defi in glossary.items():
         line = re.sub(rf"\b({re.escape(term)})\b",
-                      rf"<span title='{defi}' style='border-bottom:1px dotted;'>\1</span>",
+                      rf"<span title='{defi}' style='border-bottom:1px dotted;'>\g<1></span>",
                       line, flags=re.IGNORECASE)
     return line
 
