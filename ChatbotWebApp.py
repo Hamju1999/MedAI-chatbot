@@ -500,20 +500,22 @@ if st.session_state["run_summary"]:
             # Calendar button only for Follow‑Up items mentioning "visit"
             if header_clean == "Follow-Up Appointments or Tasks":
                 # Don't show calendar for vague or negating instructions
-                lower_text = text.lower()
-                skip_phrases = [
-                    "no follow-up", "not needed", "nothing scheduled",
-                    "none required", "not necessary", "no appointment", "keep track"
-                ]
-                if not any(phrase in lower_text for phrase in skip_phrases):
-                    ics = generate_ics(text)
-                    st.download_button(
-                        label=f"Add: '{text}' to Calendar",
-                        data=ics,
-                        file_name="followup_event.ics",
-                        mime="text/calendar",
-                        key=f"followup_{text[:20].strip().replace(' ', '_')}"
-                    )
+                    lower_text = text.lower()
+                    include_keywords = [
+                        "appointment", "visit", "follow-up", "clinic", "return", "schedule", "see your", "see the doctor"
+                    ]
+                    exclude_keywords = [
+                        "keep track", "monitor", "note", "observe", "if needed", "as needed", "not needed", "no follow-up"
+                    ]
+                    if any(word in lower_text for word in include_keywords) and not any(word in lower_text for word in exclude_keywords):
+                        ics = generate_ics(text)
+                        st.download_button(
+                            label=f"Add: '{text}' to Calendar",
+                            data=ics,
+                            file_name="followup_event.ics",
+                            mime="text/calendar",
+                            key=f"followup_{text[:20].strip().replace(' ', '_')}"
+                        )
 
     # 2) Medication checklist
     meds = sections.get("Medications", [])
