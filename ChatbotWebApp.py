@@ -35,6 +35,8 @@ try:
 except ImportError:
     sr = None
 
+AudioSegment.converter = "ffmpeg"  # ensure ffmpeg is used
+
 # --- Text extraction ---
 def extract_text_from_file(file) -> str:
     if file.type == "application/pdf":
