@@ -630,14 +630,23 @@ if st.session_state["run_summary"]:
     
     # 3) sliders for each selected symptom
     levels = {}
-    for sym in selected:
+    # ensure the list is de‑duplicated but keeps order
+    unique_selected = []
+    for s in st.session_state["selected_symptoms"]:
+        if s not in unique_selected:
+            unique_selected.append(s)
+    
+    for idx, sym in enumerate(unique_selected):
+        # slugify the symptom name
         safe = re.sub(r'[^a-z0-9]', '_', sym.lower())
+        # now include the index so every key is unique
+        slider_key = f"level_{safe}_{idx}"
         levels[sym] = st.slider(
             f"{sym} level",
             min_value=0,
             max_value=10,
             value=0,
-            key=f"level_{safe}"
+            key=slider_key
         )
     
     # 4) log button
