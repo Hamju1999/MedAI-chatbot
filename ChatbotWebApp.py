@@ -536,13 +536,11 @@ if st.session_state["run_summary"]:
     
     # Show checklist only if real meds are found
     if filtered_meds:
-        st.markdown("")  # spacing
         st.subheader("Medication Checklist & Reminders")
         for med in filtered_meds:
             st.checkbox(med, key=f"med_{med}")
         if st.button("Schedule Med Reminders", key="med_reminders_btn"):
             st.success("Medication reminders scheduled!")
-
 
     # 3) Overall reading level (once)
     if textstat:
