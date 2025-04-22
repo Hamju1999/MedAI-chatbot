@@ -358,18 +358,6 @@ if st.button("Simplify Discharge Instructions"):
                 sections["Simplified Instructions"] = [
                     ln.strip() for ln in detailed.splitlines() if ln.strip()
                 ]
-            fixed = []
-            for item in sections["Simplified Instructions"]:
-                is_fragment = (
-                    len(item.split()) <= 2
-                    or item[0].islower()
-                    or (fixed and re.search(r"if you have\s*$", fixed[-1], re.IGNORECASE))
-                )
-                if is_fragment and fixed:
-                    fixed[-1] = fixed[-1].rstrip(".  ") + " " + item.strip()
-                else:
-                    fixed.append(item.strip())
-            sections["Simplified Instructions"] = fixed
             st.session_state["cached_sections"] = sections
             verification = verify_categorizations(sections, discharge_text)
             st.session_state["verification"] = verification
