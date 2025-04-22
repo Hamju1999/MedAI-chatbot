@@ -227,6 +227,36 @@ def summarize_discharge(text:str, lvl:int, lang:str)->dict:
     return {"status":resp.status_code,
             "raw_json":resp.json() if resp.headers.get("content-type","").startswith("application/json") else resp.text}
 
+def verify_categorizations(sections: dict, original_text: str) -> dict:
+    # Build a human‑readable prompt listing each section and its items
+    verification_prompt = "You are a medical‐AI assistant.  Here is a patient discharge summary and how its lines were categorized.  "\
+        "For each bullet under each heading, tell me if it’s in the correct section.  If anything looks misplaced, suggest the correct heading.\n\n"\
+        f"Original Text:\n\"\"\"{original_text}\"\"\"\n\n"\
+        "Categorized Sections:\n"
+    for heading, items in sections.items():
+        verification_prompt += f"\n{heading}:\n"
+        for i, line in enumerate(items, 1):
+            verification_prompt += f"  {i}. {line}\n"
+
+    # fire off to the same LLM endpoint
+    payload = {
+        "model": "deepseek/deepseek-r1",
+        "messages": [{"role": "user", "content": verification_prompt}],
+        "temperature": 0.0,
+        "top_p": 1.0
+    }
+    resp = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json=payload
+    )
+    if resp.status_code != 200:
+        st.error(f"Verification API returned {resp.status_code}")
+        return {}
+    verification = resp.json()["choices"][0]["message"]["content"].strip()
+    # You could parse that into structure again, but for now just return the raw text:
+    return {"raw": verification}
+
 def generate_ics(evt:str)->str:
     dt = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
     return f"BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:{evt}\nDTSTART:{dt}\nEND:VEVENT\nEND:VCALENDAR"
@@ -299,6 +329,8 @@ if st.button("Simplify Discharge Instructions"):
                 ]
             
             st.session_state["cached_sections"] = sections
+            verification = verify_categorizations(sections, discharge_text)
+            st.session_state["verification"] = verification
         st.session_state["run_summary"] = True
 
 # --- Persistent display ---
@@ -372,6 +404,12 @@ if st.session_state["run_summary"]:
         )
         grade = textstat.flesch_kincaid_grade(all_text)
         st.markdown(f"*Overall reading level: {grade:.1f}th grade*")
+
+    # New: show LLM’s verification report
+    if "verification" in st.session_state:
+        st.markdown("---")
+        st.subheader("Categorization Verification")
+        st.write(st.session_state["verification"]["raw"])
         
     # --- Symptom Tracker with auto‑extracted symptoms ---
     st.markdown("---")
