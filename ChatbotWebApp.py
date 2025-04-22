@@ -501,7 +501,7 @@ if st.session_state["run_summary"]:
             if header_clean == "Follow-Up Appointments or Tasks":
                 ics = generate_ics(text)
                 st.download_button(
-                    label=f"Add Follow-Up: '{text}' to Calendar",
+                    label=f"Add: '{text}' to Calendar",
                     data=ics,
                     file_name="followup_event.ics",
                     mime="text/calendar",
