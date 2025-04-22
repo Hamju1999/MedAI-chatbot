@@ -239,19 +239,20 @@ def generate_concise_summary(text:str, lang:str)->dict:
 
 def summarize_discharge(text:str, lvl:int, lang:str)->dict:
     prompt = (
-        f"The following is a hospital discharge summary. Simplify it to a {lvl}th‑grade reading level in {lang}.\n\n"
-        "Organize your output in Markdown using these exact headings:\n"
-        "## Simplified Instructions\n"
-        "## Importance\n"
-        "## Follow‑Up Appointments or Tasks\n"
-        "## Medications\n"
-        "## Precautions\n"
-        "## References\n\n"
-        "Under each heading, provide bullet points where:\n"
+        f"The following is a hospital discharge summary. Simplify it to a {lvl}th-grade reading level in {lang}.\n"
+        "Break into sections with these headings:\n"
+        "- **Simplified Instructions:** bullet-points\n"
+        "- **Importance:** why each instruction matters\n"
+        "- **Follow-Up Appointments or Tasks:** tasks/visits\n"
+        "- **Medications:** with simple dosing notes\n"
+        "- **Precautions:** warning signs, activities to avoid\n"
+        "- **References:** brief reasons/explanations\n\n"
+        "Make sure under each heading, provide bullet points where:\n"
         "  • Each bullet is a single, complete sentence ending with a period.\n"
         "  • Do NOT split one idea across multiple bullets or lines.\n\n"
-        f"Here is the original text to simplify:\n\"\"\"{text}\"\"\""
+        f"Now simplify:\n\"\"\"{text}\"\"\""
     )
+    
     payload = {"model":"deepseek/deepseek-r1",
                "messages":[{"role":"user","content":prompt}],
                "temperature":0.0,"top_p":1.0}
