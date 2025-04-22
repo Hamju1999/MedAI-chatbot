@@ -499,14 +499,21 @@ if st.session_state["run_summary"]:
     
             # Calendar button only for Follow‑Up items mentioning "visit"
             if header_clean == "Follow-Up Appointments or Tasks":
-                ics = generate_ics(text)
-                st.download_button(
-                    label=f"Add: '{text}' to Calendar",
-                    data=ics,
-                    file_name="followup_event.ics",
-                    mime="text/calendar",
-                    key=f"followup_{text[:20].strip().replace(' ', '_')}"
-                )
+                # Don't show calendar for vague or negating instructions
+                lower_text = text.lower()
+                skip_phrases = [
+                    "no follow-up", "not needed", "nothing scheduled",
+                    "none required", "not necessary", "no appointment"
+                ]
+                if not any(phrase in lower_text for phrase in skip_phrases):
+                    ics = generate_ics(text)
+                    st.download_button(
+                        label=f"Add: '{text}' to Calendar",
+                        data=ics,
+                        file_name="followup_event.ics",
+                        mime="text/calendar",
+                        key=f"followup_{text[:20].strip().replace(' ', '_')}"
+                    )
 
     # 2) Medication checklist
     meds = sections.get("Medications", [])
