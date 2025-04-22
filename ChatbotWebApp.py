@@ -377,7 +377,8 @@ if st.button("Simplify Discharge Instructions"):
                 if current and text:
                     clean_text = re.sub(r"[:\*]+$", "", text).strip()
                     sections[current].append(clean_text)
-            # 1) Remove any exact duplicates within each section, preserving order
+
+            # 1) Dedupe each section, preserving order
             for sec, items in sections.items():
                 seen = set()
                 unique = []
@@ -386,27 +387,29 @@ if st.button("Simplify Discharge Instructions"):
                         seen.add(itm)
                         unique.append(itm)
                 sections[sec] = unique
-
-            # 2) If your CATEGORY_MAP fallback ever put the same line into multiple sections,
-            #    you might decide to pull it out of lower‑priority buckets—e.g.:
+        
+            # 2) Enforce single‑bucket assignment via priority
+            #    Higher priority ⇒ item stays there, removed from lower‑priority buckets
             priority = [
-                    "Simplified Instructions",
-                    "Importance",
-                    "Follow-Up Appointments or Tasks",
-                    "Medications",
-                    "Precautions",
-                    "References"
+                "Medications",
+                "Precautions",
+                "Follow-Up Appointments or Tasks",
+                "Importance",
+                "Simplified Instructions",
+                "References"
             ]
-            # build a reverse map of line→first section it appears in
+            # map each item to its highest‑priority section
             first_seen = {}
             for sec in priority:
-                for itm in sections[sec]:
+                for itm in sections.get(sec, []):
                     if itm not in first_seen:
                         first_seen[itm] = sec
-            # now rebuild each bucket, keeping only lines whose first_seen matches that bucket
+        
+            # now rebuild each section, keeping only items whose first_seen == that section
             for sec in sections:
-                sections[sec] = [itm for itm in sections[sec] if first_seen[itm] == sec]
-            # fallback if no sections found
+                sections[sec] = [itm for itm in sections[sec] if first_seen.get(itm) == sec]
+        
+            # ─── then your existing fallback & session_state assignment ───
             if all(len(items) == 0 for items in sections.values()):
                 sections["Simplified Instructions"] = [
                     ln.strip() for ln in detailed.splitlines() if ln.strip()
