@@ -499,13 +499,13 @@ if st.session_state["run_summary"]:
     
             # Calendar button only for Follow‑Up items mentioning "visit"
             if header_clean == "Follow-Up Appointments or Tasks":
-                # Don't show calendar for vague or negating instructions
                     lower_text = text.lower()
                     include_keywords = [
-                        "appointment", "visit", "follow-up", "clinic", "return", "schedule", "see your", "see the doctor"
+                        "appointment", "follow-up", "clinic", "return", "see your", "see the doctor", "visit the clinic"
                     ]
                     exclude_keywords = [
-                        "keep track", "monitor", "note", "observe", "if needed", "as needed", "not needed", "no follow-up"
+                        "keep track", "monitor", "note", "observe", "if needed", "as needed",
+                        "not needed", "no follow-up", "warning signs", "call if", "in case", "watch for"
                     ]
                     if any(word in lower_text for word in include_keywords) and not any(word in lower_text for word in exclude_keywords):
                         ics = generate_ics(text)
