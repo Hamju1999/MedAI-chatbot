@@ -653,9 +653,6 @@ if st.session_state["run_summary"]:
                 st.info("No symptoms were logged with numeric levels.")
         else:
             st.info("No symptom data.")
-    if st.session_state["symptoms"]:
-        csv = pd.DataFrame(st.session_state["symptoms"]).to_csv(index=False)
-        st.download_button("Download Symptom Log", csv, "symptoms.csv","text/csv", key="dl_symptoms")
 
     # Send Feedback
     st.markdown("---")
