@@ -99,7 +99,7 @@ def punctuate_text(raw_transcript, api_key):
         "while keeping the content exactly the same."
     )
     payload = {
-        "model": "deepseek/deepseek-r1",
+        "model": "openai/gpt-4o-mini",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
         "top_p": 1.0,
