@@ -272,7 +272,7 @@ def generate_concise_summary(text:str, lang:str)->dict:
         f"information related to the patient especially the diagnosis and the reason, patient-friendly overview.\n"
         f"Output only a short paragraph (no sections):\n\n\"\"\"{text}\"\"\""
     )
-    payload = {"model":"deepseek/deepseek-r1",
+    payload = {"model":"openai/gpt-4o-mini",
                "messages":[{"role":"user","content":prompt}],
                "temperature":0.0,"top_p":1.0}
     resp = requests.post("https://openrouter.ai/api/v1/chat/completions",
@@ -297,7 +297,7 @@ def summarize_discharge(text:str, lvl:int, lang:str)->dict:
         f"Now simplify:\n\"\"\"{text}\"\"\""
     )
     
-    payload = {"model":"deepseek/deepseek-r1",
+    payload = {"model":"openai/gpt-4o-mini",
                "messages":[{"role":"user","content":prompt}],
                "temperature":0.0,"top_p":1.0}
     resp = requests.post("https://openrouter.ai/api/v1/chat/completions",
@@ -319,7 +319,7 @@ def verify_categorizations(sections: dict, original_text: str) -> dict:
 
     # fire off to the same LLM endpoint
     payload = {
-        "model": "deepseek/deepseek-r1",
+        "model": "openai/gpt-4o-mini",
         "messages": [{"role": "user", "content": verification_prompt}],
         "temperature": 0.0,
         "top_p": 1.0
