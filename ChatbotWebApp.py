@@ -525,8 +525,9 @@ if st.session_state["run_summary"]:
     
         # Skip vague or non-actionable lines
         skip_meds = [
-            "no specific medications", "follow any instructions", "your doctor", "as needed",
-            "medication not listed", "if prescribed", "take medication as directed"
+            "no specific medications", "follow any instructions", "follow the dosing instructions", 
+            "your doctor", "as needed", "medication not listed", "if prescribed", 
+            "take medication as directed", "take medicine as needed", "if any", "use medication properly"
         ]
         if any(phrase in m.lower() for phrase in skip_meds):
             continue
@@ -564,12 +565,42 @@ if st.session_state["run_summary"]:
     st.subheader("Symptom Tracker")
     
     # 1) extract symptom keywords from the text
-    COMMON_SYMPTOMS = ["pain", "swelling", "fever", "nausea", "headache", "dizziness", "fatigue"]
+    ALL_SYMPTOMS = [
+        "pain", "swelling", "fever", "nausea", "vomiting", "headache", "dizziness", "fatigue",
+        "shortness of breath", "cough", "chills", "sore throat", "congestion", "runny nose", "sneezing",
+        "abdominal pain", "diarrhea", "constipation", "bloating", "cramps", "gas", "indigestion",
+        "chest pain", "palpitations", "irregular heartbeat", "high blood pressure", "low blood pressure",
+        "back pain", "joint pain", "muscle aches", "stiffness", "tremors", "numbness", "tingling",
+        "rash", "itching", "bruising", "bleeding", "skin discoloration", "sensitivity to light",
+        "sensitivity to sound", "loss of taste", "loss of smell", "dry mouth", "mouth ulcers",
+        "difficulty swallowing", "hoarseness", "ear pain", "hearing loss", "tinnitus",
+        "blurred vision", "double vision", "eye pain", "red eyes", "watery eyes", "yellowing of skin",
+        "weight loss", "weight gain", "loss of appetite", "increased appetite", "thirst",
+        "urinary frequency", "burning with urination", "incontinence", "urine discoloration",
+        "difficulty urinating", "sexual dysfunction", "menstrual irregularities", "hot flashes",
+        "night sweats", "anxiety", "depression", "confusion", "memory loss", "hallucinations",
+        "insomnia", "agitation", "irritability", "restlessness", "slurred speech", "balance problems",
+        "coordination problems", "fainting", "seizures", "numbness", "tingling", "paralysis",
+        "cold extremities", "cyanosis", "shaking", "clumsiness", "vision loss",
+        "blurred speech", "visual hallucinations", "auditory hallucinations", "muscle weakness",
+        "facial drooping", "gait instability", "vertigo", "delayed reflexes", "loss of coordination",
+        "memory lapses", "trouble concentrating", "brain fog", "numbness on one side of body",
+        "orthopnea", "paroxysmal nocturnal dyspnea", "wheezing", "hemoptysis",
+        "cold intolerance", "heat intolerance", "dry skin", "brittle nails", "hair thinning",
+        "excessive sweating", "frequent infections", "slow wound healing", "polyuria", "polydipsia",
+        "polyphagia", "mood swings", "panic attacks", "intrusive thoughts", "paranoia", "hopelessness",
+        "suicidal thoughts", "compulsive behavior", "phobias", "muscle cramps",
+        "joint stiffness in the morning", "limited range of motion", "weakness after exertion",
+        "bone pain", "foot drop", "easy bruising", "recurrent nosebleeds", "petechiae",
+        "swollen lymph nodes", "autoimmune flares", "malaise", "night pain", "sudden weight changes",
+        "skin sensitivity", "change in body odor", "pale skin", "general weakness", "intolerance to exercise",
+        "hot flashes", "cold flashes"
+    ]
     found = [
-        term for term in COMMON_SYMPTOMS
+        term for term in ALL_SYMPTOMS 
         if re.search(rf"\b{re.escape(term)}\b", discharge_text, flags=re.IGNORECASE)
     ]
-    
+    found.sort(key=lambda s: discharge_text.lower().find(s.lower()))
     if found:
         st.markdown("**Detected symptoms in summary:** " + ", ".join(found).capitalize())
         selected = st.multiselect(
@@ -579,7 +610,7 @@ if st.session_state["run_summary"]:
             key="selected_symptoms"
         )
     else:
-        st.info("No common symptoms detected in the summary.")
+        st.info("No symptoms detected in the summary.")
         selected = []
     
     # 2) date input
