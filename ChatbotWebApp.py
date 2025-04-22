@@ -91,6 +91,26 @@ elif not api_key:
     st.info("Please provide your OpenRouter API key.")
     st.stop()
 
+def punctuate_text(raw_transcript, api_key):
+    prompt = (
+        f"This is a transcription without punctuation or capitalization:\n\n"
+        f"{raw_transcript}\n\n"
+        "Please fix it by adding proper sentence boundaries, punctuation, and capitalization, "
+        "while keeping the content exactly the same."
+    )
+    payload = {
+        "model": "deepseek/deepseek-r1",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.0,
+        "top_p": 1.0,
+    }
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json=payload
+    )
+    return response.json()["choices"][0]["message"]["content"]
+
 # --- Input mode selector ---
 mode = st.radio(
     "How provide the discharge text?",
@@ -242,26 +262,6 @@ def apply_tooltips(line:str)->str:
                       rf"<span title='{defi}' style='border-bottom:1px dotted;'>\g<1></span>",
                       line, flags=re.IGNORECASE)
     return line
-
-def punctuate_text(raw_transcript, api_key):
-    prompt = (
-        f"This is a transcription without punctuation or capitalization:\n\n"
-        f"{raw_transcript}\n\n"
-        "Please fix it by adding proper sentence boundaries, punctuation, and capitalization, "
-        "while keeping the content exactly the same."
-    )
-    payload = {
-        "model": "deepseek/deepseek-r1",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.0,
-        "top_p": 1.0,
-    }
-    response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json=payload
-    )
-    return response.json()["choices"][0]["message"]["content"]
 
 # --- LLM calls ---
 def generate_concise_summary(text:str, lang:str)->dict:
