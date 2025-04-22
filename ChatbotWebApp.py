@@ -705,6 +705,14 @@ if st.session_state["run_summary"]:
         mime="application/json",
     )
     if st.button("Clear All Data", key="clear_data"):
+        sensitive_keys = [
+            "discharge_text", "cached_concise", "cached_summary", "cached_sections", "verification",
+            "symptoms", "selected_symptoms", "symp_date", "feedback_msg", "faq_log",
+            "emergency", "ec_name_input", "ec_num_input", "run_summary"
+        ]
+        for k in sensitive_keys:
+            st.session_state.pop(k, None)    
         for k in list(st.session_state.keys()):
-            st.session_state.pop(k,None)
-        st.success("Cleared")
+            if k.startswith("med_") or k.startswith("level_") or k.startswith("followup_"):
+                st.session_state.pop(k, None)
+        st.success("All personal data cleared. You are de-identified.")
