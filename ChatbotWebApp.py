@@ -643,12 +643,16 @@ if st.session_state["run_summary"]:
     # timeline
     if st.checkbox("Show Recovery Timeline", key="show_timeline"):
         if st.session_state["symptoms"]:
-            df=pd.DataFrame(st.session_state["symptoms"])
-            df["date"]=pd.to_datetime(df["date"])
-            st.line_chart(df.set_index("date")[["pain","swelling"]])
+            df = pd.DataFrame(st.session_state["symptoms"])
+            df["date"] = pd.to_datetime(df["date"])
+            # Get all symptom columns dynamically (excluding 'date')
+            symptom_cols = [col for col in df.columns if col != "date"]
+            if symptom_cols:
+                st.line_chart(df.set_index("date")[symptom_cols])
+            else:
+                st.info("No symptoms were logged with numeric levels.")
         else:
             st.info("No symptom data.")
-    # download log
     if st.session_state["symptoms"]:
         csv = pd.DataFrame(st.session_state["symptoms"]).to_csv(index=False)
         st.download_button("Download Symptom Log", csv, "symptoms.csv","text/csv", key="dl_symptoms")
