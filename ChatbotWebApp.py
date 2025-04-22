@@ -520,10 +520,10 @@ if st.session_state["run_summary"]:
     # Define lines to ignore
     skip_meds = [
         "no specific medications", "no medications were mentioned", "follow any instructions",
-        "your doctor", "as needed", "medication not listed", "if prescribed", 
-        "take medication as directed", "take medicine as needed", "use medication properly"
+        "follow the instructions", "your doctor", "as needed", "medication not listed",
+        "if prescribed", "take medication as directed", "take medicine as needed",
+        "use medication properly"
     ]
-    
     # Filter only real medications
     for raw in meds:
         m = re.sub(r'^[\u2022\-\*\s]+', '', raw)
