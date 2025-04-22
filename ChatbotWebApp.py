@@ -706,16 +706,21 @@ if st.session_state["run_summary"]:
         mime="application/json",
     )
     if st.button("Clear All Data", key="clear_data"):
-        sensitive_keys = [
-            "discharge_text", "cached_concise", "cached_summary", "cached_sections", "verification",
+        protected_keys = {"discharge_text"}  
+        # Known keys to clear
+        known_sensitive = [
+            "cached_concise", "cached_summary", "cached_sections", "verification",
             "symptoms", "selected_symptoms", "symp_date", "feedback_msg", "faq_log",
             "emergency", "ec_name_input", "ec_num_input", "run_summary"
         ]
-        for k in sensitive_keys:
-            if k in st.session_state:
-                st.session_state[k] = None  
+        for k in known_sensitive:
+            st.session_state.pop(k, None)
+        # Dynamically clear any generated keys (e.g., med_, level_, followup_)
         for k in list(st.session_state.keys()):
             if k.startswith("med_") or k.startswith("level_") or k.startswith("followup_"):
-                st.session_state[k] = None
-        st.session_state["run_summary"] = False
+                st.session_state.pop(k, None)
+        # Widget-bound keys must be deleted, not overwritten
+        for k in protected_keys:
+            if k in st.session_state:
+                del st.session_state[k]
         st.success("All personal data cleared. You are de-identified.")
