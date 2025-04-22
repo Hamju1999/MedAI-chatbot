@@ -113,7 +113,7 @@ def punctuate_text(raw_transcript, api_key):
 
 # --- Input mode selector ---
 mode = st.radio(
-    "How provide the discharge text?",
+    "How do you want to provide the discharge instructions?",
     ("Enter text", "Upload file", "Voice note"),
     horizontal=True
 )
