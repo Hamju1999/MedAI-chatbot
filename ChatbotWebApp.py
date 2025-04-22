@@ -503,7 +503,7 @@ if st.session_state["run_summary"]:
                 lower_text = text.lower()
                 skip_phrases = [
                     "no follow-up", "not needed", "nothing scheduled",
-                    "none required", "not necessary", "no appointment", "Keep track"
+                    "none required", "not necessary", "no appointment", "keep track"
                 ]
                 if not any(phrase in lower_text for phrase in skip_phrases):
                     ics = generate_ics(text)
