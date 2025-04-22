@@ -393,6 +393,15 @@ if st.button("Simplify Discharge Instructions"):
                     r"references?", r"explanations?", r"notes?", r"sources?"
                 ],
             }
+            alias_map = {
+                "Postoperative Care Instructions": "Simplified Instructions",
+                "Medication Guidelines":               "Medications",
+                "Signs and Symptoms to Monitor":       "Precautions",
+                "Wound and Ear Care":                  "Precautions",
+                "Activity Restrictions":               "Precautions",
+                "Follow-Up Appointments":              "Follow-Up Appointments or Tasks",
+                # you can add more as needed...
+            }
             # compile flexible header patterns (now stripping trailing ** too)
             header_patterns = {
                 name: re.compile(
@@ -408,6 +417,9 @@ if st.button("Simplify Discharge Instructions"):
                 text = re.sub(r"^[\-\*\s]+", "", stripped)
             
                 # header detection
+                if text in alias_map:
+                    current = alias_map[text]
+                    continue
                 matched = False
                 for sec_name, pat in header_patterns.items():
                     if pat.match(text):
@@ -619,13 +631,13 @@ if st.session_state["run_summary"]:
     # 3) sliders for each selected symptom
     levels = {}
     for sym in selected:
-        key = f"level_{sym.lower()}"
+        safe = re.sub(r'[^a-z0-9]', '_', sym.lower())
         levels[sym] = st.slider(
             f"{sym} level",
             min_value=0,
             max_value=10,
             value=0,
-            key=key
+            key=f"level_{safe}"
         )
     
     # 4) log button
