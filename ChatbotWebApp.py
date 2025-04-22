@@ -394,13 +394,14 @@ if st.button("Simplify Discharge Instructions"):
                 ],
             }
             alias_map = {
-                "Postoperative Care Instructions": "Simplified Instructions",
-                "Medication Guidelines":               "Medications",
-                "Signs and Symptoms to Monitor":       "Precautions",
-                "Wound and Ear Care":                  "Precautions",
-                "Activity Restrictions":               "Precautions",
-                "Follow-Up Appointments":              "Follow-Up Appointments or Tasks",
-                # you can add more as needed...
+                # PDF                         
+                "Postoperative Care Instructions":    "Simplified Instructions",
+                "Medication Guidelines":              "Medications",
+                "Wound and Ear Care":                 "Precautions",
+                "Signs and Symptoms to Monitor":      "Precautions",
+                "Activity Restrictions":              "Precautions",
+                "Follow-Up Appointments":             "Follow-Up Appointments or Tasks",
+                "Emergency Contact Information":      None,  # we handle this later in the Emergency Contacts block
             }
             # compile flexible header patterns (now stripping trailing ** too)
             header_patterns = {
