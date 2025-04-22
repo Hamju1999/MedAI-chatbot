@@ -517,24 +517,26 @@ if st.session_state["run_summary"]:
     meds = sections.get("Medications", [])
     filtered_meds = []
     
+    # Define lines to ignore
+    skip_meds = [
+        "no specific medications", "no medications were mentioned", "follow any instructions",
+        "your doctor", "as needed", "medication not listed", "if prescribed", 
+        "take medication as directed", "take medicine as needed", "use medication properly"
+    ]
+    
+    # Filter only real medications
     for raw in meds:
         m = re.sub(r'^[\u2022\-\*\s]+', '', raw)
         m = m.replace('*', '')
         m = re.sub(r'^(Task:?\s*)', '', m, flags=re.IGNORECASE)
         m = m.strip().rstrip(':').strip()
     
-        # Skip vague or non-actionable lines
-        skip_meds = [
-            "no specific medications", "follow any instructions", "follow the dosing instructions", 
-            "your doctor", "as needed", "medication not listed", "if prescribed", 
-            "take medication as directed", "take medicine as needed", "if any", "use medication properly"
-        ]
         if any(phrase in m.lower() for phrase in skip_meds):
             continue
     
         filtered_meds.append(m)
     
-    # Show checklist only if real meds are found
+    # Only show checklist if actual medications exist
     if filtered_meds:
         st.subheader("Medication Checklist & Reminders")
         for med in filtered_meds:
