@@ -319,7 +319,7 @@ def verify_categorizations(sections: dict, original_text: str) -> dict:
 
     # fire off to the same LLM endpoint
     payload = {
-        "model": "google/gemini-2.5-flash-preview",
+        "model": "openai/gpt-4o-mini",
         "messages": [{"role": "user", "content": verification_prompt}],
         "temperature": 0.0,
         "top_p": 1.0
