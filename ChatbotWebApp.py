@@ -523,14 +523,16 @@ if st.session_state["run_summary"]:
         st.markdown("")  # spacing
         st.subheader("Medication Checklist & Reminders")
         for raw in meds:
-            # 1) strip any leading bullets/spaces
             m = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-            # 2) remove all '*' characters
             m = m.replace('*', '')
-            # 3) remove any leading "Task:" prefix
             m = re.sub(r'^(Task:?\s*)', '', m, flags=re.IGNORECASE)
-            # 4) strip trailing colons and whitespace
             m = m.strip().rstrip(':').strip()
+            skip_meds = [
+                "no specific medications", "follow any instructions", "your doctor", "as needed", 
+                "medication not listed", "if prescribed", "take medication as directed"
+            ]
+            if any(phrase in m.lower() for phrase in skip_meds):
+                continue
             st.checkbox(m, key=f"med_{m}")
         if st.button("Schedule Med Reminders", key="med_reminders_btn"):
             st.success("Medication reminders scheduled!")
