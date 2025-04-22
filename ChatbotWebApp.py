@@ -166,12 +166,13 @@ else:
         st.info("Install `speech_recognition` for transcription.")
 
 discharge_text = st.session_state["discharge_text"]
-if discharge_text:
-    st.markdown("#### Original Text")
-    st.write(discharge_text)
-else:
+if not discharge_text:
     st.info("Provide text above, then click ‘Simplify Discharge Instructions’")
     st.stop()
+# Only show original text if not using voice note
+if mode != "Voice note":
+    st.markdown("#### Original Text")
+    st.write(discharge_text)
 
 # --- Sidebar & options ---
 font_size = st.sidebar.slider("Font size", 12,24,16)
