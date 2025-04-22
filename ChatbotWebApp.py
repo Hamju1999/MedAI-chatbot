@@ -117,28 +117,36 @@ else:
     if audio and sr:
         try:
             recognizer = sr.Recognizer()
-            # Convert MP3 to WAV if needed
+            
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
-                if audio.type == "audio/mp3":
+                if audio.type in ["audio/mp3", "audio/mpeg"]:
                     sound = AudioSegment.from_file(audio, format="mp3")
                     sound.export(tmp_wav.name, format="wav")
                 elif audio.type == "audio/wav":
-                    tmp_wav.write(audio.read())
+                    content = audio.read()
+                    if not content:
+                        st.error("Uploaded WAV file is empty.")
+                        st.stop()
+                    tmp_wav.write(content)
                 else:
                     st.error("Unsupported audio format")
                     st.stop()
+    
                 # Use speech recognition
                 with sr.AudioFile(tmp_wav.name) as source:
                     audio_data = recognizer.record(source)
+    
                 transcript = recognizer.recognize_google(audio_data)
                 st.success("Transcription:")
                 st.write(transcript)
-            # Clean up
+    
             os.remove(tmp_wav.name)
+    
         except Exception as e:
             st.error(f"Transcription failed: {e}")
+    
     elif audio:
-        st.info("Install speech_recognition for transcription.")
+        st.info("Install `speech_recognition` for transcription.")
 
 discharge_text = st.session_state["discharge_text"]
 if discharge_text:
