@@ -531,9 +531,9 @@ if st.session_state["run_summary"]:
         m = re.sub(r'^(Task:?\s*)', '', m, flags=re.IGNORECASE)
         m = m.strip().rstrip(':').strip()
     
-        if any(phrase in m.lower() for phrase in skip_meds):
+        med_name_pattern = re.compile(r"\b(?:acetaminophen|tylenol|oxycodone|advil|ibuprofen|colace|miralax|motrin|amoxicillin|benadryl|prednisone|zofran|albuterol|zyrtec|claritin)\b", re.IGNORECASE)
+        if any(phrase in m.lower() for phrase in skip_meds) and not med_name_pattern.search(m):
             continue
-    
         filtered_meds.append(m)
     
     # Only show checklist if actual medications exist
