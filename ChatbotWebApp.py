@@ -377,7 +377,35 @@ if st.button("Simplify Discharge Instructions"):
                 if current and text:
                     clean_text = re.sub(r"[:\*]+$", "", text).strip()
                     sections[current].append(clean_text)
-            
+            # 1) Remove any exact duplicates within each section, preserving order
+            for sec, items in sections.items():
+                seen = set()
+                unique = []
+                for itm in items:
+                    if itm not in seen:
+                        seen.add(itm)
+                        unique.append(itm)
+                sections[sec] = unique
+
+            # 2) If your CATEGORY_MAP fallback ever put the same line into multiple sections,
+            #    you might decide to pull it out of lower‑priority buckets—e.g.:
+            priority = [
+                    "Simplified Instructions",
+                    "Importance",
+                    "Follow-Up Appointments or Tasks",
+                    "Medications",
+                    "Precautions",
+                    "References"
+            ]
+            # build a reverse map of line→first section it appears in
+            first_seen = {}
+            for sec in priority:
+                for itm in sections[sec]:
+                    if itm not in first_seen:
+                        first_seen[itm] = sec
+            # now rebuild each bucket, keeping only lines whose first_seen matches that bucket
+            for sec in sections:
+                sections[sec] = [itm for itm in sections[sec] if first_seen[itm] == sec]
             # fallback if no sections found
             if all(len(items) == 0 for items in sections.values()):
                 sections["Simplified Instructions"] = [
