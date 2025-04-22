@@ -180,8 +180,39 @@ language = st.sidebar.selectbox("Output Language", ["English", "Spanish", "Chine
 
 # --- Glossary ---
 glossary = {
-    "otoscope exam": "An exam where a doctor looks inside your ear",
-    "mri": "Magnetic Resonance Imaging scan"
+    "otoscope exam": "An exam where a doctor uses a device called an otoscope to look inside your ear canal and eardrum.",
+    "mri": "Magnetic Resonance Imaging, a scan that uses magnetic fields to create detailed pictures of inside the body.",
+    "ct scan": "Computed Tomography scan, an X‑ray technique that combines images to make cross‑sectional views of the body.",
+    "mastoidectomy": "Surgical removal of infected air cells in the mastoid bone behind your ear.",
+    "cholesteatoma": "An abnormal growth of skin cells in the middle ear that can cause infection and hearing loss.",
+    "ossicular reconstruction": "Surgery to repair or replace the tiny hearing bones (ossicles) in the middle ear.",
+    "ossicles": "The three small bones in the middle ear (malleus, incus, stapes) that transmit sound vibrations.",
+    "incision": "A surgical cut made in the skin to access underlying tissues.",
+    "sutures": "Stitches used to close a wound or surgical incision.",
+    "drain": "A small tube placed after surgery to remove fluid buildup from the site.",
+    "edema": "Swelling caused by excess fluid trapped in body tissues.",
+    "analgesic": "A pain‑relief medication (e.g., acetaminophen, ibuprofen).",
+    "antibiotic prophylaxis": "Antibiotics given to prevent an infection rather than to treat one.",
+    "postoperative": "The period of time after a surgical procedure.",
+    "vertigo": "A sensation of spinning or dizziness.",
+    "audiology": "The branch of medicine that studies hearing and balance.",
+    "hearing aid": "A small electronic device worn in or behind the ear to amplify sound.",
+    "gauze dressing": "A soft, thin cloth used to cover and protect a wound.",
+    "wound care": "The process of cleaning, dressing, and monitoring a surgical site for healing.",
+    "follow-up": "A scheduled visit or check‑in with your healthcare provider after treatment or surgery.",
+    "prophylaxis": "Preventive treatment given to lower the risk of disease or complications.",
+    "corticosteroid": "A medication used to reduce inflammation (e.g., prednisone).",
+    "inflammation": "Redness, swelling, or irritation in body tissues.",
+    "discharge instructions": "Guidelines given when you leave the hospital or clinic about how to care for yourself at home.",
+    "physical therapy": "Exercises and movements guided by a therapist to help you recover strength and mobility.",
+    "hearing test": "An evaluation of how well you can hear different pitches and volumes.",
+    "reconstruction": "Restoring normal form or function of a body part after injury or surgery.",
+    "3d‑printed ossicular prosthesis": "A tiny replacement hearing bone made using 3D‑printing technology.",
+    "otorrhea": "Fluid or discharge coming from your ear.",
+    "tinnitus": "Ringing, buzzing, or other noises heard in the ear without an external source.",
+    "nystagmus": "Involuntary, rapid eye movements often associated with inner ear issues.",
+    "oral": "Medication taken by mouth (swallowed).",
+    "intravenous": "Medication or fluids given directly into a vein."
 }
 def apply_tooltips(line:str)->str:
     for term,defi in glossary.items():
@@ -327,7 +358,18 @@ if st.button("Simplify Discharge Instructions"):
                 sections["Simplified Instructions"] = [
                     ln.strip() for ln in detailed.splitlines() if ln.strip()
                 ]
-            
+            fixed = []
+            for item in sections["Simplified Instructions"]:
+                is_fragment = (
+                    len(item.split()) <= 2
+                    or item[0].islower()
+                    or (fixed and re.search(r"if you have\s*$", fixed[-1], re.IGNORECASE))
+                )
+                if is_fragment and fixed:
+                    fixed[-1] = fixed[-1].rstrip(".  ") + " " + item.strip()
+                else:
+                    fixed.append(item.strip())
+            sections["Simplified Instructions"] = fixed
             st.session_state["cached_sections"] = sections
             verification = verify_categorizations(sections, discharge_text)
             st.session_state["verification"] = verification
