@@ -11,3 +11,4 @@ torch>=2.0.0
 textstat
 qrcode
 SpeechRecognition>=3.8.1
+pydub
