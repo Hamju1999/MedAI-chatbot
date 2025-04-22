@@ -112,13 +112,22 @@ else:
     audio = st.file_uploader("Upload voice note (mp3/wav)", type=["mp3","wav"])
     if audio and sr:
         r = sr.Recognizer()
-        with sr.AudioFile(audio) as src:
-            aud = r.record(src)
         try:
-            txt = r.recognize_google(aud)
-            st.session_state["discharge_text"] = txt
-        except:
-            st.warning("Transcription failed.")
+            # Try to open & read the audio
+            with sr.AudioFile(audio) as src:
+                aud = r.record(src)
+            # Then transcribe
+            try:
+                txt = r.recognize_google(aud)
+                st.session_state["discharge_text"] = txt
+            except Exception:
+                st.warning("Transcription failed. The speech recognizer could not understand the audio.")
+        except ValueError as e:
+            # wave/aiff/flac read errors all surface as ValueError
+            st.warning("Audio format not supported for transcription. Please upload WAV, AIFF, or FLAC files.")
+        except Exception as e:
+            # catch‐all for any other low‑level file I/O errors
+            st.error(f"Could not process audio file: {e}")
     elif audio:
         st.info("Install speech_recognition for transcription.")
 
