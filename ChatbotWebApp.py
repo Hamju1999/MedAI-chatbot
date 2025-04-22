@@ -415,8 +415,30 @@ if st.button("Simplify Discharge Instructions"):
             current = None
             for line in detailed.splitlines():
                 stripped = line.strip()
+                # drop any leading bullets/spaces
                 text = re.sub(r"^[\-\*\s]+", "", stripped)
             
+                # 1) exact alias match?
+                for pdf_header, target in alias_map.items():
+                    if text.lower().startswith(pdf_header.lower()):
+                        current = target
+                        break
+                else:
+                    # 2) fallback to your existing header_patterns
+                    for sec_name, pat in header_patterns.items():
+                        if pat.match(text):
+                            current = sec_name
+                            break
+                    else:
+                        # 3) if it’s not a header, treat as content
+                        if current and text:
+                            clean_text = re.sub(r"[:\*]+$", "", text).strip()
+                            sections[current].append(clean_text)
+                        continue
+            
+                # if we matched an alias or a pattern, skip to next line
+                continue
+                    
                 # header detection
                 if text in alias_map:
                     current = alias_map[text]
