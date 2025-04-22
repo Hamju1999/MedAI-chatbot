@@ -527,9 +527,21 @@ if st.session_state["run_summary"]:
                         )
 
     # 2) Medication checklist
-    meds = sections.get("Medications", [])
-    filtered_meds = []
-    
+    raw_meds = sections.get("Medications", [])
+    med_names = []
+    for line in raw_meds:
+        # match 1–3 consecutive Title‑case words (e.g. “Acetaminophen”, “MiraLAX”, “MiraLAX or Colace”)
+        names = re.findall(r"\b([A-Z][a-zA-Z0-9\-\+]+(?:\s+or\s+[A-Z][a-zA-Z0-9\-\+]+)?)", line)
+        med_names.extend(names)
+    med_names = list(dict.fromkeys(med_names))
+
+    # 3. build a case‑insensitive regex union
+    if med_names:
+        escaped = [re.escape(n.lower()) for n in med_names]
+        med_name_pattern = re.compile(r"\b(?:" + "|".join(escaped) + r")\b", re.IGNORECASE)
+    else:
+        # no meds found, match nothing
+        med_name_pattern = re.compile(r"^$")  
     # Define lines to ignore
     skip_meds = [
         "no specific medications", "no medications were mentioned", "follow any instructions",
@@ -538,15 +550,15 @@ if st.session_state["run_summary"]:
         "use medication properly"
     ]
     # Filter only real medications
-    for raw in meds:
-        m = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-        m = m.replace('*', '')
-        m = re.sub(r'^(Task:?\s*)', '', m, flags=re.IGNORECASE)
-        m = m.strip().rstrip(':').strip()
+    filtered_meds = []
+    for raw in raw_meds:
+        m = re.sub(r'^[\u2022\-\*\s]+', '', raw).replace('*','')
+        m = re.sub(r'^(Task:?\s*)', '', m, flags=re.IGNORECASE).strip().rstrip(':').strip()
     
-        med_name_pattern = re.compile(r"\b(?:acetaminophen|tylenol|oxycodone|advil|ibuprofen|colace|miralax|motrin|amoxicillin|benadryl|prednisone|zofran|albuterol|zyrtec|claritin)\b", re.IGNORECASE)
+        # only skip truly vague lines **and** only if they mention no real drug
         if any(phrase in m.lower() for phrase in skip_meds) and not med_name_pattern.search(m):
             continue
+    
         filtered_meds.append(m)
     
     # Only show checklist if actual medications exist
