@@ -498,13 +498,14 @@ if st.session_state["run_summary"]:
             st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
     
             # Calendar button only for Follow‑Up items mentioning "visit"
-            if header_clean == "Follow-Up Appointments or Tasks" and "visit" in text.lower():
+            if header_clean == "Follow-Up Appointments or Tasks":
                 ics = generate_ics(text)
                 st.download_button(
-                    label=f"Add '{text}' to Calendar",
+                    label=f"Add Follow-Up: '{text}' to Calendar",
                     data=ics,
-                    file_name="event.ics",
-                    mime="text/calendar"
+                    file_name="followup_event.ics",
+                    mime="text/calendar",
+                    key=f"followup_{text[:20].strip().replace(' ', '_')}"
                 )
 
     # 2) Medication checklist
