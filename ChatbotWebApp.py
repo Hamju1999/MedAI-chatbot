@@ -487,13 +487,9 @@ if st.session_state["run_summary"]:
         st.markdown(f"**{header_clean}**")
     
         for raw in items:
-            # 1) strip any leading bullets/spaces
             text = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-            # 2) remove all '*' anywhere
             text = text.replace("*", "")
-            # 3) strip leading/trailing colons and whitespace
             text = text.strip().strip(":")
-            # 4) remove any leading "Task:" prefix
             text = re.sub(r'^(Task:)\s*', '', text, flags=re.IGNORECASE)
             st.markdown(f"- {apply_tooltips(text)}", unsafe_allow_html=True)
     
@@ -519,6 +515,7 @@ if st.session_state["run_summary"]:
 
     # 2) Medication checklist
     meds = sections.get("Medications", [])
+    filtered_meds = []
     if meds:
         st.markdown("")  # spacing
         st.subheader("Medication Checklist & Reminders")
@@ -533,9 +530,14 @@ if st.session_state["run_summary"]:
             ]
             if any(phrase in m.lower() for phrase in skip_meds):
                 continue
-            st.checkbox(m, key=f"med_{m}")
-        if st.button("Schedule Med Reminders", key="med_reminders_btn"):
-            st.success("Medication reminders scheduled!")
+            filtered_meds.append(m)
+        if filtered_meds:
+            st.markdown("")  # spacing
+            st.subheader("Medication Checklist & Reminders")
+            for med in filtered_meds:
+                st.checkbox(med, key=f"med_{med}")
+            if st.button("Schedule Med Reminders", key="med_reminders_btn"):
+                st.success("Medication reminders scheduled!")
 
     # 3) Overall reading level (once)
     if textstat:
