@@ -10,6 +10,7 @@ import json
 import tempfile
 import streamlit as st
 import pandas as pd
+from pydub import AudioSegment
 
 # optional readability scoring
 try:
