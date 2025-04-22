@@ -516,28 +516,32 @@ if st.session_state["run_summary"]:
     # 2) Medication checklist
     meds = sections.get("Medications", [])
     filtered_meds = []
-    if meds:
+    
+    for raw in meds:
+        m = re.sub(r'^[\u2022\-\*\s]+', '', raw)
+        m = m.replace('*', '')
+        m = re.sub(r'^(Task:?\s*)', '', m, flags=re.IGNORECASE)
+        m = m.strip().rstrip(':').strip()
+    
+        # Skip vague or non-actionable lines
+        skip_meds = [
+            "no specific medications", "follow any instructions", "your doctor", "as needed",
+            "medication not listed", "if prescribed", "take medication as directed"
+        ]
+        if any(phrase in m.lower() for phrase in skip_meds):
+            continue
+    
+        filtered_meds.append(m)
+    
+    # Show checklist only if real meds are found
+    if filtered_meds:
         st.markdown("")  # spacing
         st.subheader("Medication Checklist & Reminders")
-        for raw in meds:
-            m = re.sub(r'^[\u2022\-\*\s]+', '', raw)
-            m = m.replace('*', '')
-            m = re.sub(r'^(Task:?\s*)', '', m, flags=re.IGNORECASE)
-            m = m.strip().rstrip(':').strip()
-            skip_meds = [
-                "no specific medications", "follow any instructions", "your doctor", "as needed", 
-                "medication not listed", "if prescribed", "take medication as directed"
-            ]
-            if any(phrase in m.lower() for phrase in skip_meds):
-                continue
-            filtered_meds.append(m)
-        if filtered_meds:
-            st.markdown("")  # spacing
-            st.subheader("Medication Checklist & Reminders")
-            for med in filtered_meds:
-                st.checkbox(med, key=f"med_{med}")
-            if st.button("Schedule Med Reminders", key="med_reminders_btn"):
-                st.success("Medication reminders scheduled!")
+        for med in filtered_meds:
+            st.checkbox(med, key=f"med_{med}")
+        if st.button("Schedule Med Reminders", key="med_reminders_btn"):
+            st.success("Medication reminders scheduled!")
+
 
     # 3) Overall reading level (once)
     if textstat:
