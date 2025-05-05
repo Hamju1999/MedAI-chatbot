@@ -362,103 +362,103 @@ class MedAI:
     def addtohistory(self, role: str, content: str):
         self.conversation_history.append({"role": role, "content": content})
         
-    st.title("MedAI")
-    if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("GOOGLE_API_KEY") and os.environ.get("LLAMA_API_KEY"):
-        chatbot = MedAI()
-        uploadedfile = st.file_uploader("Upload Health Record", type="pdf")
-        if uploadedfile is not None:
-            pdftext = chatbot.loadpdf(uploadedfile)
-            st.session_state['pdftext'] = pdftext
-        else:
-            st.session_state['pdftext'] = ""
-        query = st.text_input("Enter your medical query:")
-        if st.button("Get Answer"):
-            if not query:
-                st.warning("Please enter a medical query.")
-            else:
-                chatbot.addtohistory("User", query)
-                pdftext = st.session_state.get('pdftext', "")
-                with st.spinner("Analyzing query..."):
-                    analysis = chatbot.analyzequery(query)
-                    complexity = analysis.get("complexity", False)
-                    intent = analysis.get("intent", "information")
-                    medical_terms_present = analysis.get("medical_terms_present", False)
-                    parsedquery = analysis.get("parsed_query", query)
-                with st.spinner("Generating primary answer..."):
-                    if complexity or medical_terms_present or intent.lower() == "advice":
-                        st.info("Detected complex or advice-seeking query. Using detailed model.")
-                        primary = chatbot.gpto1(chatbot.primaryprompt(parsedquery, pdftext, analysis))
-                    else:
-                        st.info("Detected simple query. Using advanced reasoning model.")
-                        primary = chatbot.gpt4(chatbot.primaryprompt(parsedquery, pdftext, analysis))
-                    primaryclean = chatbot.cleantext(primary)
-                    chatbot.addtohistory("AI", primaryclean)
-                with st.spinner("Querying multiple models in parallel..."):
-                    resultsdict = {}
-                    with ThreadPoolExecutor(max_workers=6) as executor:
-                        futures = {
-                            'ChatGPT4': executor.submit(chatbot.gpt4, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                            'ChatGPTo1': executor.submit(chatbot.gpto1, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                            'Gemini': executor.submit(chatbot.gemini, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                            'Gemma': executor.submit(chatbot.gemma, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                            'DeepSeek': executor.submit(chatbot.deepseek, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                            'Llama': executor.submit(chatbot.llama, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
-                        }
-                        for modelname, future in futures.items():
-                            resultsdict[modelname] = future.result()
-                    aggregated = chatbot.aggregate(resultsdict)
-                    aggregatedclean = chatbot.cleantext(aggregated)
-                    for model_name, answer in resultsdict.items():
-                        accuracy_check_prompt = (
-                            f"Evaluate the factual accuracy of the following medical answer. "
-                            f"Cross-reference with reliable medical sources and provide a brief assessment:\n\n"
-                            f"{answer}\n\nAccuracy Assessment for {model_name}:"
-                        )
-                        accuracy_assessment = chatbot.gemrefine(accuracy_check_prompt)
-                with st.spinner("Refining aggregated answer..."):
-                    refined = chatbot.refine(aggregatedclean)
-                    refinedclean = chatbot.cleantext(refined)
-                    st.subheader("Refined Answer:")
-                    st.write(refinedclean)
-                with st.spinner("Verifying refined answer against medical sources..."):
-                    verificationresult = chatbot.verifyrefined(refinedclean, parsedquery)
-                    verificationmatches = verificationresult.get("matches", [])
-                    confidencescore = verificationresult.get("confidence", 0.0)
-                    st.subheader("Refined Answer Accuracy (Confidence Score):")
-                    st.write(f"{confidencescore:.2f}")
-                    filtered_matches = []
-                    for match in verificationmatches:
-                        try:
-                            response = chatbot.fetchurl(match['url'])
-                            if "Could not find that page" not in response and "Page not found" not in response and "Page or document not found" not in response and "Error" not in response:
-                                filtered_matches.append(match)
-                            else:
-                                st.warning(f"Filtered out URL due to error: {match['url']}")
-                        except Exception as e:
-                            st.error(f"Error checking URL {match['url']}: {e}")
-                    if filtered_matches:
-                        st.subheader("Verification Matches (Top results):")
-                        for idx, match in enumerate(filtered_matches[:5], 1):
-                            st.markdown(f"**Match {idx}:**")
-                            st.write(f"Source URL: {match['url']}")
-                            st.write(f"Similarity Score: {match['similarity']:.2f}")
-                            st.write(f"Matching Sentence: {match['sentence']}")
-                    else:
-                        st.info("No valid verification matches found after filtering.")
-                with st.spinner("Synthesizing verified information..."):
-                    consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
-                    if consensusverified:
-                        st.subheader("Verified Information:")
-                        st.write(consensusverified)
-                    else:
-                        st.info("No verified information generated.")
-                if refinedclean and consensusverified:
-                    with st.spinner("Combining refined and verified information..."):
-                        finalverified = chatbot.combinerefinedconsensus(refinedclean, consensusverified)
-                        finalverifiedclean = chatbot.cleantext(finalverified)
-                        st.subheader("Final Verified Information:")
-                        st.write(finalverifiedclean)
-                else:
-                    st.info("Insufficient data to combine and refine for the final answer.")
+st.title("MedAI")
+if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("GOOGLE_API_KEY") and os.environ.get("LLAMA_API_KEY"):
+    chatbot = MedAI()
+    uploadedfile = st.file_uploader("Upload Health Record", type="pdf")
+    if uploadedfile is not None:
+        pdftext = chatbot.loadpdf(uploadedfile)
+        st.session_state['pdftext'] = pdftext
     else:
-        st.warning("API keys are not configured. Please set them as secrets in Streamlit Cloud.")
+        st.session_state['pdftext'] = ""
+    query = st.text_input("Enter your medical query:")
+    if st.button("Get Answer"):
+        if not query:
+            st.warning("Please enter a medical query.")
+        else:
+            chatbot.addtohistory("User", query)
+            pdftext = st.session_state.get('pdftext', "")
+            with st.spinner("Analyzing query..."):
+                analysis = chatbot.analyzequery(query)
+                complexity = analysis.get("complexity", False)
+                intent = analysis.get("intent", "information")
+                medical_terms_present = analysis.get("medical_terms_present", False)
+                parsedquery = analysis.get("parsed_query", query)
+            with st.spinner("Generating primary answer..."):
+                if complexity or medical_terms_present or intent.lower() == "advice":
+                    st.info("Detected complex or advice-seeking query. Using detailed model.")
+                    primary = chatbot.gpto1(chatbot.primaryprompt(parsedquery, pdftext, analysis))
+                else:
+                    st.info("Detected simple query. Using advanced reasoning model.")
+                    primary = chatbot.gpt4(chatbot.primaryprompt(parsedquery, pdftext, analysis))
+                primaryclean = chatbot.cleantext(primary)
+                chatbot.addtohistory("AI", primaryclean)
+            with st.spinner("Querying multiple models in parallel..."):
+                resultsdict = {}
+                with ThreadPoolExecutor(max_workers=6) as executor:
+                    futures = {
+                        'ChatGPT4': executor.submit(chatbot.gpt4, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'ChatGPTo1': executor.submit(chatbot.gpto1, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'Gemini': executor.submit(chatbot.gemini, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'Gemma': executor.submit(chatbot.gemma, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'DeepSeek': executor.submit(chatbot.deepseek, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                        'Llama': executor.submit(chatbot.llama, chatbot.primaryprompt(parsedquery, pdftext, analysis)),
+                    }
+                    for modelname, future in futures.items():
+                        resultsdict[modelname] = future.result()
+                aggregated = chatbot.aggregate(resultsdict)
+                aggregatedclean = chatbot.cleantext(aggregated)
+                for model_name, answer in resultsdict.items():
+                    accuracy_check_prompt = (
+                        f"Evaluate the factual accuracy of the following medical answer. "
+                        f"Cross-reference with reliable medical sources and provide a brief assessment:\n\n"
+                        f"{answer}\n\nAccuracy Assessment for {model_name}:"
+                    )
+                    accuracy_assessment = chatbot.gemrefine(accuracy_check_prompt)
+            with st.spinner("Refining aggregated answer..."):
+                refined = chatbot.refine(aggregatedclean)
+                refinedclean = chatbot.cleantext(refined)
+                st.subheader("Refined Answer:")
+                st.write(refinedclean)
+            with st.spinner("Verifying refined answer against medical sources..."):
+                verificationresult = chatbot.verifyrefined(refinedclean, parsedquery)
+                verificationmatches = verificationresult.get("matches", [])
+                confidencescore = verificationresult.get("confidence", 0.0)
+                st.subheader("Refined Answer Accuracy (Confidence Score):")
+                st.write(f"{confidencescore:.2f}")
+                filtered_matches = []
+                for match in verificationmatches:
+                    try:
+                        response = chatbot.fetchurl(match['url'])
+                        if "Could not find that page" not in response and "Page not found" not in response and "Page or document not found" not in response and "Error" not in response:
+                            filtered_matches.append(match)
+                        else:
+                            st.warning(f"Filtered out URL due to error: {match['url']}")
+                    except Exception as e:
+                        st.error(f"Error checking URL {match['url']}: {e}")
+                if filtered_matches:
+                    st.subheader("Verification Matches (Top results):")
+                    for idx, match in enumerate(filtered_matches[:5], 1):
+                        st.markdown(f"**Match {idx}:**")
+                        st.write(f"Source URL: {match['url']}")
+                        st.write(f"Similarity Score: {match['similarity']:.2f}")
+                        st.write(f"Matching Sentence: {match['sentence']}")
+                else:
+                    st.info("No valid verification matches found after filtering.")
+            with st.spinner("Synthesizing verified information..."):
+                consensusverified = chatbot.synthesizeverifiedinfo(verificationmatches)
+                if consensusverified:
+                    st.subheader("Verified Information:")
+                    st.write(consensusverified)
+                else:
+                    st.info("No verified information generated.")
+            if refinedclean and consensusverified:
+                with st.spinner("Combining refined and verified information..."):
+                    finalverified = chatbot.combinerefinedconsensus(refinedclean, consensusverified)
+                    finalverifiedclean = chatbot.cleantext(finalverified)
+                    st.subheader("Final Verified Information:")
+                    st.write(finalverifiedclean)
+            else:
+                st.info("Insufficient data to combine and refine for the final answer.")
+else:
+    st.warning("API keys are not configured. Please set them as secrets in Streamlit Cloud.")
