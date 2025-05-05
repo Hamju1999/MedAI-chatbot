@@ -25,48 +25,6 @@ for package in ['punkt', 'punkt_tab']:
         print(f"Error finding {package} data: {e}")
         nltk.download(package)
 
-def loadandpreprocess(uploadfile):
-    _, ext = os.path.splitext(uploadfile.name)
-    if ext.lower() == ".pdf":
-        try:
-            reader = PyPDF2.PdfReader(uploadfile)
-            text = "".join(page.extract_text() or "" for page in reader.pages)
-        except Exception as e:
-            st.error(f"Error reading PDF: {e}")
-            text = ""
-    else:
-        text = uploadfile.read().decode("utf-8")    
-    return [
-        re.sub(r'\s+', ' ', re.sub(r'[^\x00-\x7F]+', ' ', line.strip()))
-        for line in text.splitlines() if line.strip()
-    ]
-
-def simplifytext(text, gptclient, patientcontext=None):
-    prompt = f"Patient context: {patientcontext}\nMedical Instructions: {text}" if patientcontext else text
-    message = (
-        "Simplify the following medical instructions into clear, patient-friendly language. "
-        "Retain the essential details but use plain language and structure the information for easy reading:\n\n" 
-        + prompt
-    )
-    try:
-        response = gptclient.chat.completions.create(
-            model="o1-mini",
-            messages=[{"role": "user", "content": message}],
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"[ChatGPT Error] {e}"
-
-def extractkeyinfo(simplifiedtext):
-    sentences = nltk.sent_tokenize(simplifiedtext)
-    keywords = ['follow', 'call', 'take', 'return', 'appointment', 'contact', 'schedule', 'medication']
-    keyphrases = [sent for sent in sentences if any(keyword in sent.lower() for keyword in keywords)]
-    return keyphrases
-
-def evaluatereadability(simplifiedtext):
-    score = textstat.flesch_reading_ease(simplifiedtext)
-    return score
-
 @st.cache_resource
 def loadsimilaritymodel():
     return SentenceTransformer('all-MiniLM-L6-v2')
@@ -403,38 +361,7 @@ class MedAI:
 
     def addtohistory(self, role: str, content: str):
         self.conversation_history.append({"role": role, "content": content})
-
-st.sidebar.title("Select Mode")
-mode = st.sidebar.selectbox("Choose an application mode", ["Chatbot", "Patient Simulation", "Discharge Instructions"])
-
-if mode == "Discharge Instructions":
-    st.title("Discharge Instruction")
-    uploadfile = st.file_uploader("Upload Discharge Instructions", type=["txt", "pdf"])
-    if uploadfile is not None:
-        data = loadandpreprocess(uploadfile)
-        if data:
-            originaltext = data[0]
-            st.subheader("Original Text")
-            st.write(originaltext)
-            with st.spinner("Initializing OpenAI client..."):
-                gptclient = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-            patientcontext = st.text_input("Enter patient context (optional):")
-            with st.spinner("Simplifying text..."):
-                simplifiedtext = simplifytext(originaltext, gptclient, patientcontext=patientcontext)
-            st.subheader("Simplified Text")
-            st.write(simplifiedtext)
-            keyinfo = extractkeyinfo(simplifiedtext)
-            st.subheader("Extracted Key Information")
-            st.write(keyinfo)
-            readability = evaluatereadability(simplifiedtext)
-            st.subheader("Readability Score (Flesch Reading Ease)")
-            st.write(readability)
-        else:
-            st.warning("No valid data found in the file.")
-    else:
-        st.info("Please upload a discharge instructions file.")
-
-if mode == "Chatbot":
+        
     st.title("MedAI")
     if os.environ.get("OPENAI_API_KEY") and os.environ.get("DEEPSEEK_API_KEY") and os.environ.get("GOOGLE_API_KEY") and os.environ.get("LLAMA_API_KEY"):
         chatbot = MedAI()
@@ -535,88 +462,3 @@ if mode == "Chatbot":
                     st.info("Insufficient data to combine and refine for the final answer.")
     else:
         st.warning("API keys are not configured. Please set them as secrets in Streamlit Cloud.")
-
-if mode == "Patient Simulation":
-    def parsetranscript(transcripttext: str) -> dict:
-        ccmatch = re.search(r"Chief Complaint:\s*(.*)", transcripttext)
-        chiefcomplaint = ccmatch.group(1).strip() if ccmatch else "Shortness of breath and swelling in my legs."
-        hpimatch = re.search(r"History of Present Illness \(HPI\):\s*(.*?)\n\n", transcripttext, re.DOTALL)
-        historyofpresentillness = hpimatch.group(1).strip() if hpimatch else transcripttext[:100]
-        pmhmatch = re.search(r"Past Medical History.*?:\s*(.*?)\n\n", transcripttext, re.DOTALL)
-        pastmedicalhistorytext = pmhmatch.group(1).strip() if pmhmatch else ""
-        pastmedicalhistory = re.split(r'\n|\r', pastmedicalhistorytext)
-        pastmedicalhistory = [line.strip() for line in pastmedicalhistory if line.strip()]
-        medmatch = re.search(r"Medications:\s*(.*?)\n\n", transcripttext, re.DOTALL)
-        medicationstext = medmatch.group(1).strip() if medmatch else ""
-        medslines = medicationstext.splitlines()
-        medications = [re.sub(r"^\d+\.\s*", "", line).strip() for line in medslines if line.strip()]
-        typicalresponses = {
-            "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
-            "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
-            "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
-            "are you taking all your medications?": "Yes, I haven't missed any doses.",
-            "any chest pain?": "No, no chest pain.",
-        }
-        return {
-            "chief complaint": chiefcomplaint,
-            "history of present illness": historyofpresentillness,
-            "past medical history": pastmedicalhistory,
-            "medications": medications,
-            "typical responses": typicalresponses
-        }
-        
-    st.title("Interactive AI Patient Simulation")
-    uploaded_file = st.file_uploader("Upload Clinical Transcript", type=["txt", "pdf"])
-    if uploaded_file is not None:
-        transcripttext = uploaded_file.read().decode("utf-8")
-        st.subheader("Transcript Content")
-        st.text_area("Transcript", transcripttext, height=200)
-        simulatedpatientcase = parsetranscript(transcripttext)
-    else:
-        simulatedpatientcase = {
-            "chief complaint": "Shortness of breath and swelling in my legs.",
-            "history of present illness": "The patient reports increasing shortness of breath over the past week, especially when lying down. They also noticed swelling in their ankles and legs. They feel tired more easily.",
-            "past medical history": ["Hypertension", "Type 2 Diabetes"],
-            "medications": ["Lisinopril", "Metformin"],
-            "typical responses": {
-                "how are you feeling today?": "I'm feeling quite breathless today, and my legs are really swollen.",
-                "can you describe your shortness of breath?": "It feels like I can't get enough air, especially when I try to lie flat.",
-                "have you checked your weight recently?": "Yes, I've gained about 5 pounds in the last week.",
-                "are you taking all your medications?": "Yes, I haven't missed any doses.",
-                "any chest pain?": "No, no chest pain.",
-            }
-        }
-    if "simulationmessages" not in st.session_state:
-        st.session_state["simulationmessages"] = [{
-            "role": "assistant",
-            "content": f"Hello doctor, I'm here because of {simulatedpatientcase['chief complaint']}."
-        }]
-    for msg in st.session_state.simulationmessages:
-        st.chat_message(msg["role"]).write(msg["content"])
-    prompt = st.chat_input(key="simulation_input")
-    if prompt:
-        st.session_state.simulationmessages.append({"role": "user", "content": prompt})
-        st.chat_message("user").write(prompt)
-        conversationcontext = "\n".join([f"{msg['role']}: {msg['content']}" for msg in st.session_state.simulationmessages])
-        llmprompt = textwrap.dedent(f"""
-            You are a patient with heart failure. Your chief complaint is {simulatedpatientcase['chief complaint']}.
-            Your history includes: {', '.join(simulatedpatientcase['past medical history'])}.
-            You are currently taking: {', '.join(simulatedpatientcase['medications'])}.
-            Here is the conversation so far:
-            {conversationcontext}
-            Respond to the last message as the patient would, drawing from your simulated details and typical responses. Be concise and realistic.
-        """)
-        clientsimulation = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-        try:
-            response = clientsimulation.chat.completions.create(
-                model="o1-mini",
-                messages=[
-                    {"role": "system", "content": "You are a patient in a medical simulation."},
-                    {"role": "user", "content": llmprompt},
-                ]
-            )
-            airesponse = response.choices[0].message.content
-            st.session_state.simulationmessages.append({"role": "assistant", "content": airesponse})
-            st.chat_message("assistant").write(airesponse)
-        except Exception as e:
-            st.error(f"An error occurred in the simulation: {e}")
